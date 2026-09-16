@@ -1,0 +1,278 @@
+/* 游戏页：聊天贪吃蛇（伪装为聊天窗口） */
+page {
+  background: #EDEDED;
+  --nav-bg: #F7F7F7;
+  --line: #E5E5E5;
+  --text: #191919;
+  --text-2: #888888;
+  --green: #07C160;
+  height: 100%;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #EDEDED;
+}
+
+/* ---------- 顶部栏 ---------- */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: var(--nav-bg);
+  border-bottom: 1rpx solid var(--line);
+}
+.navbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20rpx;
+  position: relative;
+}
+
+.nav-back {
+  display: flex;
+  align-items: center;
+  min-width: 120rpx;
+  height: 72rpx;
+}
+.nav-back-num {
+  font-size: 32rpx;
+  color: var(--text);
+  margin-left: 12rpx;
+  font-variant-numeric: tabular-nums;
+}
+.ico-back {
+  width: 22rpx; height: 22rpx;
+  border-left: 4rpx solid #191919;
+  border-bottom: 4rpx solid #191919;
+  transform: rotate(45deg);
+  border-radius: 2rpx;
+}
+
+.nav-title {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  max-width: 360rpx;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.nav-title > text:first-child {
+  font-size: 32rpx; font-weight: 600; color: var(--text);
+  max-width: 360rpx;
+}
+.nav-sub { font-size: 20rpx; color: var(--text-2); margin-top: 2rpx; }
+
+.nav-more {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 72rpx;
+  padding: 0 8rpx;
+}
+.nav-more .dot {
+  width: 10rpx; height: 10rpx; border-radius: 50%;
+  background: #191919;
+}
+.nav-hover { opacity: .5; }
+
+/* ---------- 消息区（游戏画布） ---------- */
+.msg-area {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #EDEDED;
+}
+.canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 装饰气泡：低透明度，不干扰游戏 */
+.bubble {
+  position: absolute;
+  max-width: 300rpx;
+  padding: 12rpx 20rpx;
+  border-radius: 14rpx;
+  background: rgba(255,255,255,0.55);
+  border: 1rpx solid rgba(0,0,0,0.04);
+  opacity: .5;
+  font-size: 24rpx;
+  color: #4A4A4A;
+  pointer-events: none;
+}
+.bubble.right { background: rgba(149,236,105,0.35); }
+
+/* 老板键伪装层 */
+.boss-layer {
+  position: absolute;
+  inset: 0;
+  background: #EDEDED;
+  z-index: 5;
+}
+.boss-tip {
+  position: absolute;
+  top: 40%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 26rpx;
+  color: #B2B2B2;
+}
+
+/* 中央提示 */
+.hint {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 6;
+}
+.btn-start {
+  min-width: 200rpx;
+  height: 84rpx;
+  padding: 0 48rpx;
+  border-radius: 999rpx;
+  background: var(--green);
+  color: #FFFFFF;
+  font-size: 32rpx;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6rpx 20rpx rgba(7,193,96,0.28);
+}
+.hint-text { margin-top: 20rpx; font-size: 24rpx; color: var(--text-2); }
+
+/* 红包飘字 */
+.packet {
+  position: absolute;
+  left: 50%; top: 42%;
+  transform: translate(-50%, -50%);
+  color: #FA5151;
+  font-size: 72rpx;
+  font-weight: 700;
+  text-shadow: 0 4rpx 16rpx rgba(250,81,81,0.35);
+  animation: pop 1.2s ease-out;
+  pointer-events: none;
+  z-index: 7;
+}
+@keyframes pop {
+  0%   { opacity: 0; transform: translate(-50%, -20%) scale(.6); }
+  30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -110%) scale(1); }
+}
+
+/* 轻提示 */
+.toast {
+  position: absolute;
+  left: 50%; bottom: 40rpx;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.62);
+  color: #FFFFFF;
+  font-size: 24rpx;
+  padding: 12rpx 26rpx;
+  border-radius: 999rpx;
+  z-index: 8;
+}
+
+/* ---------- 底部操作栏 ---------- */
+.actionbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12rpx 24rpx;
+  background: #F7F7F7;
+  border-top: 1rpx solid var(--line);
+  flex-shrink: 0;
+}
+
+.cross { display: flex; flex-direction: column; align-items: center; }
+.cross-row { display: flex; align-items: center; }
+.dbtn {
+  width: 88rpx; height: 88rpx;   /* ≥ 44px，单手可操作（说明书 §5.3） */
+  margin: 4rpx;
+  border-radius: 16rpx;
+  background: #FFFFFF;
+  border: 1rpx solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+}
+.dbtn-hover { background: #E9E9E9; }
+.dbtn.center { background: #EFEFEF; }
+.center-text { font-size: 26rpx; color: var(--text); }
+
+/* 方向箭头（纯 CSS） */
+.arw { width: 0; height: 0; border: 16rpx solid transparent; }
+.arw.up    { border-bottom-color: #191919; margin-top: -8rpx; }
+.arw.down  { border-top-color: #191919; margin-bottom: -8rpx; }
+.arw.left  { border-right-color: #191919; margin-left: -8rpx; }
+.arw.right { border-left-color: #191919; margin-right: -8rpx; }
+
+.side-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12rpx;
+}
+.sbtn {
+  min-width: 140rpx;
+  height: 68rpx;
+  padding: 0 24rpx;
+  border-radius: 12rpx;
+  background: #FFFFFF;
+  border: 1rpx solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 27rpx; color: var(--text);
+}
+.sbtn-hover { background: #E9E9E9; }
+.stat { display: flex; align-items: baseline; }
+.stat-label { font-size: 22rpx; color: var(--text-2); margin-right: 8rpx; }
+.stat-val { font-size: 30rpx; color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
+.effect { font-size: 20rpx; color: #FA5151; }
+
+/* ---------- 结算弹窗（伪装） ---------- */
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.dialog {
+  width: 560rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+.dlg-title {
+  padding: 40rpx 32rpx 16rpx;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text);
+}
+.dlg-body {
+  padding: 0 32rpx 36rpx;
+  text-align: center;
+  font-size: 27rpx;
+  color: #4A4A4A;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+.dlg-btns {
+  display: flex;
+  border-top: 1rpx solid var(--line);
+}
+.dlg-btn {
+  flex: 1;
+  height: 96rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30rpx;
+  color: var(--text);
+}
+.dlg-btn + .dlg-btn { border-left: 1rpx solid var(--line); }
+.dlg-btn.primary { color: var(--green); font-weight: 600; }
+
+.ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

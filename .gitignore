@@ -1,0 +1,15 @@
+# 依赖与构建产物
+node_modules/
+miniprogram_npm/
+dist/
+
+# 微信开发者工具本地私有配置
+project.private.config.json
+project.private.config.json.bak
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

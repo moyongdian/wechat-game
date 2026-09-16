@@ -1,0 +1,140 @@
+<!-- 设置页：仿聊天信息页（说明书 §7） -->
+<view class="page">
+
+  <view class="navbar" style="padding-top:{{statusBarHeight}}px">
+    <view class="navbar-inner" style="height:{{navHeight}}px">
+      <view class="nav-back" bindtap="onBack" hover-class="nav-hover">
+        <view class="ico-back"></view>
+      </view>
+      <view class="nav-title">聊天信息</view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+  <view style="height:{{statusBarHeight + navHeight}}px"></view>
+
+  <!-- 聊天对象名称 -->
+  <view class="group">
+    <view class="row">
+      <text class="label">聊天对象名称</text>
+      <input class="input" value="{{s.chatName}}" maxlength="20"
+             placeholder="1-20 个字符" bindinput="onNameInput" bindblur="onNameBlur" />
+    </view>
+    <view class="tip">修改后首页列表项与游戏页顶部名称同步</view>
+  </view>
+
+  <!-- 游戏设置 -->
+  <view class="group">
+    <view class="row column">
+      <text class="label">游戏模式</text>
+      <view class="seg">
+        <view class="seg-item {{s.mode === item.key ? 'on' : ''}}" wx:for="{{modes}}" wx:key="key"
+              data-v="{{item.key}}" bindtap="onPickMode">{{item.label}}</view>
+      </view>
+    </view>
+    <view class="row column">
+      <text class="label">游戏速度</text>
+      <view class="seg">
+        <view class="seg-item {{s.speed === item.key ? 'on' : ''}}" wx:for="{{speeds}}" wx:key="key"
+              data-v="{{item.key}}" bindtap="onPickSpeed">{{item.label}}</view>
+      </view>
+      <text class="tip">限时模式速度固定，经典/穿墙随分数加快</text>
+    </view>
+    <view class="row">
+      <text class="label">特殊豆</text>
+      <view class="switch {{s.specialFood ? 'on' : ''}}" data-key="specialFood" bindtap="onToggle">
+        <view class="knob"></view>
+      </view>
+    </view>
+    <view class="tip">金豆 / 双倍 / 减速 / 加速 / 护盾 / 缩小 / 红包</view>
+  </view>
+
+  <!-- 伪装增强 -->
+  <view class="group">
+    <view class="row">
+      <text class="label">老板键</text>
+      <view class="switch {{s.bossKey ? 'on' : ''}}" data-key="bossKey" bindtap="onToggle">
+        <view class="knob"></view>
+      </view>
+    </view>
+    <view class="tip">开启后双击消息区立即伪装成普通聊天</view>
+
+    <view class="row">
+      <text class="label">假消息</text>
+      <view class="switch {{s.fakeMsg ? 'on' : ''}}" data-key="fakeMsg" bindtap="onToggle">
+        <view class="knob"></view>
+      </view>
+    </view>
+    <view class="row column" wx:if="{{s.fakeMsg}}">
+      <text class="label">假消息频率</text>
+      <view class="seg">
+        <view class="seg-item {{s.fakeMsgRate === item.key ? 'on' : ''}}" wx:for="{{rates}}" wx:key="key"
+              data-v="{{item.key}}" bindtap="onPickRate">{{item.label}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 声音与反馈 -->
+  <view class="group">
+    <view class="row">
+      <text class="label">音效</text>
+      <view class="switch {{s.sound ? 'on' : ''}}" data-key="sound" bindtap="onToggle">
+        <view class="knob"></view>
+      </view>
+    </view>
+    <view class="tip">默认关闭，避免声音暴露</view>
+
+    <view class="row">
+      <text class="label">震动</text>
+      <view class="switch {{s.vibrate ? 'on' : ''}}" data-key="vibrate" bindtap="onToggle">
+        <view class="knob"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 聊天背景 -->
+  <view class="group">
+    <view class="row" bindtap="onPickBackground">
+      <text class="label">聊天背景</text>
+      <text class="value">{{s.background === 'default' ? '默认背景' : '自定义图片'}}</text>
+      <view class="arrow"></view>
+    </view>
+    <view class="row" wx:if="{{s.background !== 'default'}}" bindtap="onResetBackground">
+      <text class="label danger">恢复默认背景</text>
+      <view class="arrow"></view>
+    </view>
+  </view>
+
+  <!-- 最高分 -->
+  <view class="group">
+    <view class="row"><text class="label">最高分 · 经典</text><text class="value">{{best.classic}}</text></view>
+    <view class="row"><text class="label">最高分 · 穿墙</text><text class="value">{{best.wrap}}</text></view>
+    <view class="row"><text class="label">最高分 · 限时</text><text class="value">{{best.timed}}</text></view>
+    <view class="row" bindtap="onClearBest">
+      <text class="label danger">清除最高分</text>
+      <view class="arrow"></view>
+    </view>
+  </view>
+
+  <!-- 其他 -->
+  <view class="group">
+    <view class="row" bindtap="onAbout">
+      <text class="label">关于</text>
+      <text class="value">v{{version}}</text>
+      <view class="arrow"></view>
+    </view>
+    <view class="row" bindtap="onFeedback">
+      <text class="label">反馈</text>
+      <view class="arrow"></view>
+    </view>
+    <view class="row" bindtap="onResetAll">
+      <text class="label">恢复默认设置</text>
+      <view class="arrow"></view>
+    </view>
+    <view class="row" bindtap="onBackHome">
+      <text class="label">返回首页</text>
+      <view class="arrow"></view>
+    </view>
+  </view>
+
+  <view class="footer">数据仅保存在本机 · 不收集个人信息</view>
+</view>

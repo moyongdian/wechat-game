@@ -1,0 +1,106 @@
+<!-- 游戏页：聊天贪吃蛇（伪装成聊天窗口） -->
+<view class="page">
+
+  <!-- 顶部：聊天对象名称 + 返回 + 三个点 -->
+  <view class="navbar" style="padding-top:{{statusBarHeight}}px">
+    <view class="navbar-inner" style="height:{{navHeight}}px">
+      <view class="nav-back" bindtap="onBack" hover-class="nav-hover">
+        <view class="ico-back"></view>
+        <text class="nav-back-num">{{score}}</text>
+      </view>
+      <view class="nav-title" bindtap="onTitleTap">
+        <text class="ellipsis">{{chatName}}</text>
+        <text class="nav-sub">{{modeLabel}}{{remainSeconds > 0 ? ' · ' + remainSeconds + 's' : ''}}</text>
+      </view>
+      <view class="nav-more" bindtap="onOpenSettings" hover-class="nav-hover">
+        <view class="dot"></view><view class="dot"></view><view class="dot"></view>
+      </view>
+    </view>
+  </view>
+  <view style="height:{{statusBarHeight + navHeight}}px"></view>
+
+  <!-- 消息区：游戏画布 + 装饰气泡（双击伪装） -->
+  <view class="msg-area" style="{{bgStyle}}"
+        bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" bindtap="onMessageTap">
+    <canvas type="2d" id="gameCanvas" class="canvas"></canvas>
+
+    <!-- 装饰性聊天气泡（低透明度，增强聊天观感） -->
+    <view class="bubble {{item.self ? 'right' : 'left'}}"
+          wx:for="{{bubbles}}" wx:key="id"
+          style="left:{{item.left}}%; top:{{item.top}}%"
+          wx:if="{{!bossMode}}">
+      <text>{{item.text}}</text>
+    </view>
+
+    <!-- 老板键伪装层：显示普通聊天内容 -->
+    <view class="boss-layer" wx:if="{{bossMode}}">
+      <view class="boss-tip">聊天记录已隐藏</view>
+      <view class="bubble left" style="left:8%; top:18%"><text>这个我看一下</text></view>
+      <view class="bubble right" style="left:38%; top:34%"><text>好的，稍等</text></view>
+      <view class="bubble left" style="left:10%; top:52%"><text>晚点回复你</text></view>
+    </view>
+
+    <!-- 未开始提示 -->
+    <view class="hint" wx:if="{{!running && !paused && !over && !bossMode}}">
+      <view class="btn-start" bindtap="onStart">开始</view>
+      <text class="hint-text">方向键或滑动控制</text>
+    </view>
+
+    <!-- 暂停提示 -->
+    <view class="hint" wx:if="{{paused && !over && !bossMode}}">
+      <view class="btn-start" bindtap="onPauseToggle">继续</view>
+      <text class="hint-text">已暂停</text>
+    </view>
+
+    <!-- 红包飘字 -->
+    <view class="packet" wx:if="{{packetText}}">{{packetText}}</view>
+
+    <!-- 轻提示 -->
+    <view class="toast" wx:if="{{toastText}}">{{toastText}}</view>
+  </view>
+
+  <!-- 底部操作栏：仿聊天输入栏 + 十字方向键 -->
+  <view class="actionbar" style="padding-bottom:{{safeBottom}}px">
+    <view class="cross">
+      <view class="cross-row">
+        <view class="dbtn" data-dir="up" bindtap="onDir" hover-class="dbtn-hover"><view class="arw up"></view></view>
+      </view>
+      <view class="cross-row">
+        <view class="dbtn" data-dir="left" bindtap="onDir" hover-class="dbtn-hover"><view class="arw left"></view></view>
+        <view class="dbtn center" bindtap="onPauseToggle">
+          <text class="center-text">{{running ? '暂停' : '继续'}}</text>
+        </view>
+        <view class="dbtn" data-dir="right" bindtap="onDir" hover-class="dbtn-hover"><view class="arw right"></view></view>
+      </view>
+      <view class="cross-row">
+        <view class="dbtn" data-dir="down" bindtap="onDir" hover-class="dbtn-hover"><view class="arw down"></view></view>
+      </view>
+    </view>
+
+    <view class="side-btns">
+      <view class="sbtn" bindtap="onRestart" hover-class="sbtn-hover">
+        <text>重开</text>
+      </view>
+      <view class="sbtn" bindtap="onOpenSettings" hover-class="sbtn-hover">
+        <text>设置</text>
+      </view>
+      <view class="stat">
+        <text class="stat-label">最高</text>
+        <text class="stat-val">{{best}}</text>
+      </view>
+      <text class="effect" wx:if="{{effectText}}">{{effectText}}</text>
+    </view>
+  </view>
+
+  <!-- 结算弹窗（伪装成消息发送失败） -->
+  <view class="mask" wx:if="{{result.show}}">
+    <view class="dialog">
+      <view class="dlg-title">{{result.title}}</view>
+      <view class="dlg-body">{{result.content}}</view>
+      <view class="dlg-btns">
+        <view class="dlg-btn" bindtap="onResend">重新发送</view>
+        <view class="dlg-btn primary" bindtap="onBackToChat">返回聊天</view>
+      </view>
+    </view>
+  </view>
+</view>
