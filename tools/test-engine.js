@@ -161,6 +161,40 @@ check('护盾无敌时长为 3 秒', INVINCIBLE_SECONDS === 3, String(INVINCIBLE
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
 check('慢速已降低（间隔 ≥ 280ms）', slowG.interval() >= 280, slowG.interval() + 'ms')
 
+section('回归：护盾无敌后仍可移动（曾卡死）')
+{
+  const g2 = new SnakeGame({ cols: 20, rows: 22, specialFood: false })
+  g2.start()
+  g2.shield = 1
+  // 贴右墙向右 → 撞墙被护盾抵挡
+  g2.snake = [{ x: 19, y: 5 }, { x: 18, y: 5 }, { x: 17, y: 5 }]
+  g2.dir = { x: 1, y: 0 }; g2.dirName = 'right'
+  const r0 = g2.tick()
+  check('撞墙被护盾抵挡且进入无敌', r0.shielded === 'shield' && g2.invincible === INVINCIBLE_SECONDS,
+    `shielded=${r0.shielded} inv=${g2.invincible}`)
+  check('被抵挡后自动重新定向（不再朝墙）', g2.dirName !== 'right', `dir=${g2.dirName}`)
+  let moved = 0
+  for (let i = 0; i < 8; i++) if (g2.tick().moved) moved++
+  check('★回归：无敌期间蛇可持续移动', moved >= 6, `8 次 tick 移动 ${moved} 次`)
+  check('★回归：无敌期间不会死亡', g2.state === 'running', `state=${g2.state}`)
+}
+
+section('回归：穿墙时相邻节跨边界需可识别（曾画出长线）')
+{
+  const g3 = new SnakeGame({ cols: 20, rows: 22, mode: MODES.WRAP, specialFood: false })
+  g3.start()
+  const linked = (a, b) => Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1
+  check('直行相邻节判定为连续', linked({ x: 5, y: 5 }, { x: 6, y: 5 }) === true)
+  check('拐弯相邻节判定为连续', linked({ x: 5, y: 5 }, { x: 5, y: 6 }) === true)
+  check('穿墙右向跳变判定为不连续', linked({ x: 0, y: 5 }, { x: 19, y: 5 }) === false)
+  check('穿墙上向跳变判定为不连续', linked({ x: 5, y: 0 }, { x: 5, y: 21 }) === false)
+  // 穿墙后蛇头确实跳到对侧
+  g3.snake = [{ x: 19, y: 5 }, { x: 18, y: 5 }, { x: 17, y: 5 }]
+  g3.dir = { x: 1, y: 0 }; g3.dirName = 'right'
+  g3.tick()
+  check('穿墙后蛇头环绕到另一侧', g3.snake[0].x === 0, `headX=${g3.snake[0].x}`)
+}
+
 section('分数段与连击')
 const sg = new SnakeGame({ specialFood: false, speed: 'mid' })
 sg.start()

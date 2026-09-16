@@ -216,11 +216,14 @@ class SnakeGame {
       } else {
         const r = this.takeDamage('wall')
         if (r.blocked) {
-          // 被护盾/无敌抵挡：原地掉头，避免立刻再次撞墙
-          const opposite = { up: 'down', down: 'up', left: 'right', right: 'left' }[this.dirName]
-          this.dirName = opposite
-          this.dir = DIRS[opposite]
-          return { moved: false, shielded: r.by }
+          // 被护盾/无敌抵挡：重新定向到一个可安全前进的方向，
+          // 否则会持续撞墙导致蛇卡住不动
+          const safe = this.safeDirection([this.dirName])
+          if (safe) {
+            this.dirName = safe
+            this.dir = DIRS[safe]
+          }
+          return { moved: false, shielded: r.by, redirected: safe }
         }
         return { moved: false, dead: 'wall' }
       }
@@ -233,7 +236,14 @@ class SnakeGame {
     const hitSelf = body.some((s) => s.x === nx && s.y === ny)
     if (hitSelf) {
       const r = this.takeDamage('self')
-      if (r.blocked) return { moved: false, shielded: r.by }
+      if (r.blocked) {
+        const safe = this.safeDirection([this.dirName])
+        if (safe) {
+          this.dirName = safe
+          this.dir = DIRS[safe]
+        }
+        return { moved: false, shielded: r.by, redirected: safe }
+      }
       return { moved: false, dead: 'self' }
     }
 
@@ -312,6 +322,38 @@ class SnakeGame {
     iv = Math.max(MIN_INTERVAL, iv)
     if (this.hasEffect('slow')) iv = Math.min(380, Math.round(iv * 1.6))
     return iv
+  }
+
+  /**
+   * 从候选方向中挑一个「下一步不会撞墙/撞自己」的方向
+   * 用于被护盾或无敌抵挡后重新定向，避免蛇卡在原地无法移动
+   */
+  safeDirection(preferred) {
+    const head = this.snake[0]
+    const body = this.snake.slice(0, -1)   // 蛇尾会让出，可忽略
+    const order = []
+    // 优先候选（通常是当前方向），再依次尝试其余方向
+    for (const d of (preferred || [])) if (!order.includes(d)) order.push(d)
+    for (const d of ['up', 'right', 'down', 'left']) if (!order.includes(d)) order.push(d)
+
+    for (const name of order) {
+      const v = DIRS[name]
+      if (!v) continue
+      let nx = head.x + v.x
+      let ny = head.y + v.y
+      if (this.mode === MODES.WRAP) {
+        nx = (nx + this.cols) % this.cols
+        ny = (ny + this.rows) % this.rows
+      } else if (nx < 0 || ny < 0 || nx >= this.cols || ny >= this.rows) {
+        continue                                   // 会撞墙
+      }
+      if (body.some((s2) => s2.x === nx && s2.y === ny)) continue   // 会撞自己
+      // 不允许 180° 反向（除非无路可走时由调用方兜底）
+      const cur = this.dir
+      if (cur && cur.x + v.x === 0 && cur.y + v.y === 0) continue
+      return name
+    }
+    return null
   }
 
   gameOver(reason) {

@@ -258,44 +258,54 @@ Page({
     // 豆子：各类特殊豆在形状/大小/颜色上区分（见 drawFood）
     this.drawFood(ctx, g.food, ox, oy, cell)
 
-    // 蛇：用「粗圆头线段」连接各节中心 → 无论直行还是拐弯都完全无缝
-    // （若只画圆，斜向相邻的圆心距为 1.414 格 > 两半径和，拐弯处必然有缝）
+    // 蛇：用「粗圆头线段」连接各节中心 → 无缝隙
+    // 穿墙时相邻两节会跨过边界（坐标跳变 1 格以上），必须断开绘制，
+    // 否则会出现一条横穿整个画面的长线
     const n = g.snake.length
     const inv = (g.invincible || 0) > 0
     const pulse = inv ? 1 + 0.04 * Math.sin(Date.now() / 130) : 1
-    const c = (i) => ({
+    const pt = (i) => ({
       x: ox + g.snake[i].x * cell + cell / 2,
       y: oy + g.snake[i].y * cell + cell / 2
     })
+    // 判断相邻两节是否连续（未跨边界）
+    const linked = (i) => {
+      const a = g.snake[i], b = g.snake[i + 1]
+      return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1
+    }
 
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
 
-    // 先画整条身子的连接段（深绿描边感），再画主色，形成细描边
-    ctx.lineWidth = cell * 0.94 * pulse
-    ctx.strokeStyle = inv ? 'rgba(34, 211, 238, 0.55)' : '#05A050'
-    ctx.beginPath()
-    for (let i = 0; i < n - 1; i++) {
-      const a = c(i), b = c(i + 1)
-      ctx.moveTo(a.x, a.y)
-      ctx.lineTo(b.x, b.y)
+    // 先描深色边，再叠主色 → 形成细描边观感
+    const strokes = [
+      { w: cell * 0.94, color: inv ? 'rgba(34, 211, 238, 0.55)' : '#05A050' },
+      { w: cell * 0.78, color: inv ? '#22D3EE' : '#07C160' }
+    ]
+    for (const st of strokes) {
+      ctx.lineWidth = st.w * pulse
+      ctx.strokeStyle = st.color
+      ctx.beginPath()
+      for (let i = 0; i < n - 1; i++) {
+        if (!linked(i)) continue          // 跨边界：断开，避免长线
+        const a = pt(i), b = pt(i + 1)
+        ctx.moveTo(a.x, a.y)
+        ctx.lineTo(b.x, b.y)
+      }
+      ctx.stroke()
     }
-    if (n === 1) { const a = c(0); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x, a.y) }
-    ctx.stroke()
 
-    // 主色：稍细，盖在描边之上
-    ctx.lineWidth = cell * 0.78 * pulse
-    ctx.strokeStyle = inv ? '#22D3EE' : '#07C160'
-    ctx.beginPath()
-    for (let i = 0; i < n - 1; i++) {
-      const a = c(i), b = c(i + 1)
-      ctx.moveTo(a.x, a.y)
-      ctx.lineTo(b.x, b.y)
+    // 各节圆点：保证断开处与单节时仍可见（也是连接段的补充）
+    ctx.fillStyle = inv ? '#22D3EE' : '#07C160'
+    for (let i = 1; i < n; i++) {
+      const a = pt(i)
+      ctx.beginPath()
+      ctx.arc(a.x, a.y, cell * 0.39 * pulse, 0, Math.PI * 2)
+      ctx.fill()
     }
-    ctx.stroke()
 
-    // 蛇头：略深，稍大
-    const head = c(0)
+    // 蛇头：略深、稍大
+    const head = pt(0)
     ctx.beginPath()
     ctx.arc(head.x, head.y, cell * 0.44 * pulse, 0, Math.PI * 2)
     ctx.fillStyle = inv ? '#22D3EE' : '#06AD56'
