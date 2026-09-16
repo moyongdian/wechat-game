@@ -227,9 +227,8 @@ page {
   justify-content: center;
   box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
 }
-/* 左右键拉伸铺满整行（flex:1 自动占满剩余空间，用 margin 制造间距） */
-.dbtn.side { flex: 1; }
-.dbtn.side:first-child { margin-right: 24rpx; }
+/* 左右键与上下键同尺寸（不再拉伸），仅保留键间距 */
+.dbtn.side:first-child { margin-right: 20rpx; }
 .dbtn-hover { background: #E2E2E2; }
 
 /* 方向箭头（纯 CSS） */
