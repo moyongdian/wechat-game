@@ -63,7 +63,7 @@
     <view class="toast" wx:if="{{toastText}}">{{toastText}}</view>
   </view>
 
-  <!-- 底部操作栏：仅十字方向键（左右铺满整行，按键间保留间距） -->
+  <!-- 底部操作栏：十字方向键，中心为设置 -->
   <view class="actionbar" style="padding-bottom:{{safeBottom}}px">
     <view class="pad">
       <view class="pad-row">
@@ -72,10 +72,13 @@
         </view>
       </view>
       <view class="pad-row">
-        <view class="dbtn side" data-dir="left" bindtap="onDir" hover-class="dbtn-hover">
+        <view class="dbtn" data-dir="left" bindtap="onDir" hover-class="dbtn-hover">
           <view class="arw left"></view>
         </view>
-        <view class="dbtn side" data-dir="right" bindtap="onDir" hover-class="dbtn-hover">
+        <view class="dbtn center" bindtap="onOpenSettings" hover-class="dbtn-hover">
+          <text class="center-text">设置</text>
+        </view>
+        <view class="dbtn" data-dir="right" bindtap="onDir" hover-class="dbtn-hover">
           <view class="arw right"></view>
         </view>
       </view>

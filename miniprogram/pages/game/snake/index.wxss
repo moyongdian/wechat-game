@@ -227,8 +227,16 @@ page {
   justify-content: center;
   box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
 }
-/* 左右键与上下键同尺寸（不再拉伸），仅保留键间距 */
-.dbtn.side:first-child { margin-right: 20rpx; }
+/* 同一行内按键之间保留间距（左右键与中间设置键） */
+.pad-row .dbtn + .dbtn { margin-left: 20rpx; }
+
+/* 中间设置键：与方向键同尺寸，样式略作区分 */
+.dbtn.center { background: #F2F2F2; }
+.center-text {
+  font-size: 27rpx;
+  color: #191919;
+  font-weight: 500;
+}
 .dbtn-hover { background: #E2E2E2; }
 
 /* 方向箭头（纯 CSS） */
