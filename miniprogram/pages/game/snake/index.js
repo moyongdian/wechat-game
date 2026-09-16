@@ -625,12 +625,17 @@ Page({
   },
 
   /** 长按方向键开始：蛇速提高 1 倍（表现为按得越久走得越快） */
+  /**
+   * 长按方向键开始：蛇速提高 1 倍
+   * 注意顺序：必须「先 stopLoop() 再设置 boostDir」——
+   * stopLoop() 内部会重置 boostDir，顺序反了会让加速循环第一步就退出（蛇卡住不动）
+   */
   onDirLongStart(e) {
     const dir = e.currentTarget.dataset.dir
-    this.onDir(e)                                  // 先按一次方向
+    this.onDir(e)                                  // 先按一次该方向
     if (!this.game || this.game.state !== 'running') return
-    this.boostDir = dir
-    this.stopLoop()                                // 停掉常规循环，改由加速循环驱动
+    this.stopLoop()                                // 先停常规循环（会清空 boostDir）
+    this.boostDir = dir                            // 再设置加速方向
     this.startBoostLoop()
   },
 
