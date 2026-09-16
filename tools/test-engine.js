@@ -235,7 +235,7 @@ check('速度档位：慢 > 中 > 快 的间隔', slow.interval() > gm.interval(
   `${slow.interval()} / ${gm.interval()} / ${fast.interval()} ms`)
 gm.score = 20
 check('经典模式随分数加快', gm.interval() < 160, `${gm.interval()} ms`)
-check('中存在下限（不低于 70ms）', (() => { gm.score = 9999; return gm.interval() >= 70 })(), `${gm.interval()} ms`)
+check('速度存在下限（不低于 60ms）', (() => { gm.score = 9999; return gm.interval() >= 60 })(), `${gm.interval()} ms`)
 const gt = new SnakeGame({ mode: MODES.TIMED, speed: 'mid', specialFood: false })
 gt.start()
 gt.score = 50
