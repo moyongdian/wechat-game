@@ -5,7 +5,7 @@
  * 规则依据说明书：
  *  - §6 基础规则：初始 3 节、向右、定时移动、普通豆随机且不在蛇身上、特殊豆概率 20%-30%
  *  - §6.1 三种模式：经典（撞墙死）/ 穿墙（左右上下互通）/ 限时（60 秒）
- *  - §6 特殊豆：金豆 / 双倍豆 / 减速豆 / 加速豆 / 护盾豆 / 缩小豆 / 红包
+ *  - §6 特殊豆：金豆 / 双倍豆 / 减速豆 / 护盾豆 / 缩小豆 / 红包（加速豆已按需求移除）
  */
 
 const MODES = { CLASSIC: 'classic', WRAP: 'wrap', TIMED: 'timed' }
@@ -23,7 +23,6 @@ const SPECIALS = {
   gold:    { label: '金豆',   points: 5,  color: '#FFD700', duration: 0 },
   double:  { label: '双倍豆', points: 1,  color: '#FFFFFF', duration: 20 },
   slow:    { label: '减速豆', points: 3,  color: '#1989FA', duration: 8 },
-  fast:    { label: '加速豆', points: 3,  color: '#FA5151', duration: 8 },
   shield:  { label: '护盾豆', points: 3,  color: '#FFFFFF', duration: 0 },
   shrink:  { label: '缩小豆', points: 3,  color: '#FFFFFF', duration: 0 },
   packet:  { label: '红包',   points: 0,  color: '#FA5151', duration: 0 } // 分数随机 10-50
@@ -239,7 +238,6 @@ class SnakeGame {
       // 效果类
       if (type === 'double') this.effects.double = (this.effects.double || 0) + SPECIALS.double.duration
       if (type === 'slow')   this.effects.slow   = (this.effects.slow   || 0) + SPECIALS.slow.duration
-      if (type === 'fast')   this.effects.fast   = (this.effects.fast   || 0) + SPECIALS.fast.duration
       if (type === 'shield') this.shield += 1
       if (type === 'shrink') {
         // 缩短 2 节，最低保留 3 节
@@ -258,14 +256,13 @@ class SnakeGame {
 
   /** 当前移动间隔（含效果影响） */
   interval() {
-    const base = { slow: 220, mid: 160, fast: 110 }[this.speed] || 160
+    const base = { slow: 280, mid: 160, fast: 110 }[this.speed] || 160
     if (this.mode === MODES.TIMED) {
       // 限时模式固定中速
       return base
     }
     let iv = Math.max(70, base - Math.floor(this.score / 5) * 12)
-    if (this.hasEffect('slow')) iv = Math.min(320, Math.round(iv * 1.6))
-    if (this.hasEffect('fast')) iv = Math.max(60, Math.round(iv * 0.6))
+    if (this.hasEffect('slow')) iv = Math.min(360, Math.round(iv * 1.6))
     return iv
   }
 

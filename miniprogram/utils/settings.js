@@ -21,7 +21,7 @@ const DEFAULTS = {
 }
 
 /** 速度档位 → 每格移动间隔（毫秒），随分数递减见 game.js */
-const SPEED_MAP = { slow: 220, mid: 160, fast: 110 }
+const SPEED_MAP = { slow: 280, mid: 160, fast: 110 }
 
 function readAll() {
   try {

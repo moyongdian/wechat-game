@@ -10,6 +10,10 @@ const util = require('../../../utils/util')
 const COLS = 20
 const ROWS = 22
 
+/** 聊天头像（原创几何头像，避免使用官方素材） */
+const AVATAR_OTHER = '/images/avatar-snake.png'   // 对方（聊天对象）
+const AVATAR_ME = '/images/avatar-me.png'         // 自己
+
 Page({
   data: {
     statusBarHeight: 20,
@@ -85,7 +89,7 @@ Page({
   },
 
   onHide() { this.pauseGame('hide') },   // 切后台自动暂停（说明书 §8.2）
-  onUnload() { this.stopLoop() },
+  onUnload() { this.stopLoop(); this.stopChatTimer() },
 
   /* ================= Canvas 初始化 ================= */
   initCanvas() {
@@ -174,7 +178,7 @@ Page({
       const s = settings.get()
       util.vibrate(s.vibrate)
       if (r.special) {
-        const label = { gold: '金豆 +5', double: '双倍得分 20s', slow: '减速 8s', fast: '加速 8s',
+        const label = { gold: '金豆 +5', double: '双倍得分 20s', slow: '减速 8s',
                         shield: '护盾 +1', shrink: '蛇身 -2', packet: '红包 +' + r.gained }[r.special]
         this.showToast(label)
       }
@@ -195,7 +199,6 @@ Page({
     const parts = []
     if (g.hasEffect('double')) parts.push('×2 ' + g.effects.double + 's')
     if (g.hasEffect('slow')) parts.push('减速 ' + g.effects.slow + 's')
-    if (g.hasEffect('fast')) parts.push('加速 ' + g.effects.fast + 's')
     if (g.shield) parts.push('护盾 ×' + g.shield)
     return parts.join(' · ')
   },
@@ -289,21 +292,44 @@ Page({
     ctx.closePath()
   },
 
-  /** 生成装饰气泡位置（随机、低透明度） */
+  /** 生成聊天消息（含头像、随机内容、左右分布） */
   buildBubbles() {
     const arr = []
     const s = settings.get()
-    if (!s.fakeMsg) { this.setData({ bubbles: [] }); return }
-    for (let i = 0; i < 3; i++) {
+    if (!s.fakeMsg) { this.setData({ bubbles: [] }); this.stopChatTimer(); return }
+
+    for (let i = 0; i < 4; i++) {
+      const self = i % 2 === 1      // 交替左右，像真实对话
       arr.push({
         id: i,
         text: fake.pick(fake.BUBBLES),
-        left: 6 + Math.random() * 12,       // 百分比
-        top: 8 + i * 26 + Math.random() * 8,
-        self: Math.random() > 0.5            // 左右分布，像双向聊天
+        left: self ? 40 + Math.random() * 10 : 6 + Math.random() * 10,
+        top: 6 + i * 22 + Math.random() * 6,
+        self,
+        avatar: self ? AVATAR_ME : AVATAR_OTHER
       })
     }
     this.setData({ bubbles: arr })
+    this.startChatTimer()
+  },
+
+  /** 定时随机更换聊天内容，让消息区看起来在持续对话 */
+  startChatTimer() {
+    this.stopChatTimer()
+    const s = settings.get()
+    if (!s.fakeMsg) return
+    const iv = s.fakeMsgRate === 'high' ? 2500 : s.fakeMsgRate === 'mid' ? 4200 : 6500
+    this.chatTimer = setInterval(() => {
+      if (this.data.bossMode) return
+      const arr = (this.data.bubbles || []).map((b) => (
+        Math.random() < 0.4 ? Object.assign({}, b, { text: fake.pick(fake.BUBBLES) }) : b
+      ))
+      this.setData({ bubbles: arr })
+    }, iv)
+  },
+
+  stopChatTimer() {
+    if (this.chatTimer) { clearInterval(this.chatTimer); this.chatTimer = null }
   },
 
   drawBubbles(ctx, ox, oy) {

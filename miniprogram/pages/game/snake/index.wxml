@@ -28,20 +28,37 @@
         bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" bindtap="onMessageTap">
     <canvas type="2d" id="gameCanvas" class="canvas"></canvas>
 
-    <!-- 装饰性聊天气泡（低透明度，增强聊天观感） -->
-    <view class="bubble {{item.self ? 'right' : 'left'}}"
-          wx:for="{{bubbles}}" wx:key="id"
-          style="left:{{item.left}}%; top:{{item.top}}%"
-          wx:if="{{!bossMode}}">
-      <text>{{item.text}}</text>
-    </view>
+    <!-- 装饰性聊天消息（头像 + 随机内容，低透明度增强聊天观感） -->
+    <block wx:if="{{!bossMode}}">
+      <view class="msg {{item.self ? 'right' : 'left'}}"
+            wx:for="{{bubbles}}" wx:key="id"
+            style="left:{{item.left}}%; top:{{item.top}}%">
+        <image class="msg-avatar" src="{{item.avatar}}" mode="aspectFill" />
+        <view class="msg-bubble">
+          <text>{{item.text}}</text>
+        </view>
+      </view>
+    </block>
 
     <!-- 老板键伪装层：显示普通聊天内容 -->
     <view class="boss-layer" wx:if="{{bossMode}}">
       <view class="boss-tip">聊天记录已隐藏</view>
-      <view class="bubble left" style="left:8%; top:18%"><text>这个我看一下</text></view>
-      <view class="bubble right" style="left:38%; top:34%"><text>好的，稍等</text></view>
-      <view class="bubble left" style="left:10%; top:52%"><text>晚点回复你</text></view>
+      <view class="msg left" style="left:8%; top:16%">
+        <image class="msg-avatar" src="/images/avatar-snake.png" mode="aspectFill" />
+        <view class="msg-bubble"><text>这个我看一下</text></view>
+      </view>
+      <view class="msg right" style="left:40%; top:32%">
+        <image class="msg-avatar" src="/images/avatar-me.png" mode="aspectFill" />
+        <view class="msg-bubble"><text>好的，稍等</text></view>
+      </view>
+      <view class="msg left" style="left:10%; top:50%">
+        <image class="msg-avatar" src="/images/avatar-snake.png" mode="aspectFill" />
+        <view class="msg-bubble"><text>晚点回复你</text></view>
+      </view>
+      <view class="msg right" style="left:44%; top:66%">
+        <image class="msg-avatar" src="/images/avatar-me.png" mode="aspectFill" />
+        <view class="msg-bubble"><text>收到</text></view>
+      </view>
     </view>
 
     <!-- 未开始提示 -->

@@ -129,13 +129,6 @@ check('减速豆进入 8 秒效果', g.hasEffect('slow') && g.effects.slow === 8
 check('减速后移动间隔变长', g.interval() > ivBefore, `${ivBefore} → ${g.interval()}`)
 
 g = makeGame(); g.start()
-g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'fast' }
-const ivBefore2 = g.interval()
-g.tick()
-check('加速豆进入 8 秒效果', g.hasEffect('fast') && g.effects.fast === 8, JSON.stringify(g.effects))
-check('加速后移动间隔变短', g.interval() < ivBefore2, `${ivBefore2} → ${g.interval()}`)
-
-g = makeGame(); g.start()
 g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'shield' }
 g.tick()
 check('护盾豆 +1 次护盾', g.shield === 1, `shield=${g.shield}`)
@@ -162,6 +155,12 @@ g.tick()
 check('缩小豆最低保留 3 节', g.snake.length === 3, `实际 ${g.snake.length}`)
 
 /* ---------- 速度 ---------- */
+section('需求变更验证')
+check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
+check('特殊豆共 6 种', Object.keys(SPECIALS).length === 6, String(Object.keys(SPECIALS).length))
+const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
+check('慢速已降低（间隔 ≥ 280ms）', slowG.interval() >= 280, slowG.interval() + 'ms')
+
 section('速度规则')
 const gm = makeGame({ speed: 'mid' })
 const slow = makeGame({ speed: 'slow' }), fast = makeGame({ speed: 'fast' })
@@ -169,7 +168,7 @@ check('速度档位：慢 > 中 > 快 的间隔', slow.interval() > gm.interval(
   `${slow.interval()} / ${gm.interval()} / ${fast.interval()} ms`)
 gm.score = 20
 check('经典模式随分数加快', gm.interval() < 160, `${gm.interval()} ms`)
-check('加速存在下限（不低于 70ms）', (() => { gm.score = 9999; return gm.interval() >= 70 })(), `${gm.interval()} ms`)
+check('中存在下限（不低于 70ms）', (() => { gm.score = 9999; return gm.interval() >= 70 })(), `${gm.interval()} ms`)
 const gt = new SnakeGame({ mode: MODES.TIMED, speed: 'mid', specialFood: false })
 gt.start()
 gt.score = 50

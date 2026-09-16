@@ -6,6 +6,8 @@ page {
   --text: #191919;
   --text-2: #888888;
   --green: #07C160;
+  --line-strong: #D6D6D6;    /* 界面边框色 */
+  --btn-border: #D0D0D0;     /* 按钮边框色 */
   height: 100%;
 }
 
@@ -22,7 +24,7 @@ page {
   top: 0; left: 0; right: 0;
   z-index: 100;
   background: var(--nav-bg);
-  border-bottom: 1rpx solid var(--line);
+  border-bottom: 2rpx solid var(--line-strong);
 }
 .navbar-inner {
   display: flex;
@@ -53,7 +55,7 @@ page {
   margin-left: 8rpx;
 }
 .nav-score-val {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 600;
   color: var(--green);
   font-variant-numeric: tabular-nums;
@@ -77,10 +79,10 @@ page {
   align-items: center;
 }
 .nav-title > text:first-child {
-  font-size: 32rpx; font-weight: 600; color: var(--text);
+  font-size: 34rpx; font-weight: 600; color: var(--text);
   max-width: 360rpx;
 }
-.nav-sub { font-size: 20rpx; color: var(--text-2); margin-top: 2rpx; }
+.nav-sub { font-size: 22rpx; color: var(--text-2); margin-top: 2rpx; }
 
 .nav-more {
   display: flex;
@@ -101,6 +103,9 @@ page {
   flex: 1;
   overflow: hidden;
   background: #EDEDED;
+  border: 2rpx solid var(--line-strong);
+  border-radius: 12rpx;
+  margin: 12rpx;
 }
 .canvas {
   width: 100%;
@@ -108,20 +113,43 @@ page {
   display: block;
 }
 
-/* 装饰气泡：低透明度，不干扰游戏 */
-.bubble {
+/* 装饰性聊天消息：头像 + 气泡
+   字号与微信默认一致（正文 27rpx / 名称 32rpx），透明度低，不干扰游戏 */
+.msg {
   position: absolute;
-  max-width: 300rpx;
-  padding: 12rpx 20rpx;
-  border-radius: 14rpx;
-  background: rgba(255,255,255,0.55);
-  border: 1rpx solid rgba(0,0,0,0.04);
-  opacity: .5;
-  font-size: 24rpx;
-  color: #4A4A4A;
+  display: flex;
+  align-items: flex-start;
+  max-width: 420rpx;
+  opacity: .62;
   pointer-events: none;
 }
-.bubble.right { background: rgba(149,236,105,0.35); }
+.msg.left { flex-direction: row; }
+.msg.right { flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+  border: 1rpx solid var(--line-strong);
+  background: #E5E5E5;
+}
+
+.msg-bubble {
+  max-width: 300rpx;
+  margin: 0 12rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 14rpx;
+  background: rgba(255,255,255,0.9);
+  border: 1rpx solid rgba(0,0,0,0.06);
+  font-size: 27rpx;          /* 与微信消息正文一致 */
+  line-height: 1.45;
+  color: #191919;
+  word-break: break-all;
+}
+.msg.right .msg-bubble {
+  background: rgba(149,236,105,0.55);   /* 己方绿色气泡 */
+}
 
 /* 老板键伪装层 */
 .boss-layer {
@@ -200,7 +228,7 @@ page {
   align-items: stretch;
   padding: 16rpx 24rpx 10rpx;
   background: #F7F7F7;
-  border-top: 1rpx solid var(--line);
+  border-top: 2rpx solid var(--line-strong);
   flex-shrink: 0;
 }
 
@@ -221,11 +249,11 @@ page {
   height: 112rpx;
   border-radius: 20rpx;
   background: #FFFFFF;
-  border: 1rpx solid var(--line);
+  border: 2rpx solid var(--btn-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
 }
 /* 同一行内按键之间保留间距（左右键与中间设置键） */
 .pad-row .dbtn + .dbtn { margin-left: 20rpx; }
@@ -233,7 +261,7 @@ page {
 /* 中间设置键：与方向键同尺寸，样式略作区分 */
 .dbtn.center { background: #F2F2F2; }
 .center-text {
-  font-size: 27rpx;
+  font-size: 30rpx;
   color: #191919;
   font-weight: 500;
 }
