@@ -75,6 +75,24 @@ section('游戏页：方向键即时响应（长按加速已按要求删除）')
   check('连点保护（<40ms 只记录方向，避免瞬间多格）', onDir.includes('tooFast') && onDir.includes('< 40'))
 }
 
+section('游戏页：豆子显示在假消息之上（双画布分层）')
+{
+  const wxml = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxss'), 'utf8')
+  const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')
+  check('存在两个画布（蛇层 + 豆子层）',
+    wxml.includes('id="gameCanvas"') && wxml.includes('id="foodCanvas"'))
+  check('豆子层 z-index 高于聊天层', (() => {
+    const food = /canvas-food[^}]*z-index:\s*(\d+)/.exec(wxss)
+    const chat = /chat-scroll\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    return food && chat && Number(food[1]) > Number(chat[1])
+  })())
+  check('豆子层声明了 position（否则 z-index 无效）',
+    /\.canvas-food\s*\{[^}]*position:\s*absolute/.test(wxss))
+  check('渲染循环同时绘制两层', src.includes('this.drawFoodLayer()'))
+  check('豆子画布已初始化', src.includes('this.foodCtx') && src.includes("select('#foodCanvas')"))
+}
+
 section('游戏页：暂停 / 恢复时聊天定时器的清理（曾导致假消息不再更新）')
 {
   const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')

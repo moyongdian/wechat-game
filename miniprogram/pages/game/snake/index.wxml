@@ -29,8 +29,10 @@
 
   <!-- 消息区：游戏画布（底层） + 聊天消息流（滚动层） -->
   <view class="msg-area" style="{{bgStyle}}">
-    <!-- 游戏画布：含黑色边框的墙 -->
+    <!-- 游戏画布：墙体 + 蛇（在下层，聊天消息之上） -->
     <canvas type="2d" id="gameCanvas" class="canvas"></canvas>
+    <!-- 豆子画布：单独一层，确保豆子显示在聊天消息之上，不被遮挡 -->
+    <canvas type="2d" id="foodCanvas" class="canvas canvas-food"></canvas>
 
     <!-- 聊天消息流：新消息从下方出现并向上滚动 -->
     <scroll-view class="chat-scroll" scroll-y scroll-with-animation

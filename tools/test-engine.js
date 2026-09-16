@@ -195,34 +195,38 @@ section('特殊豆概率实测')
   check('实测概率落在 40%~50% 区间', r >= 0.38 && r <= 0.52, `${(r * 100).toFixed(1)}%`)
 }
 
-section('分数段与连击')
+section('分数段与连击（阈值 20/40/60/100，之后每 +100 一阶；倍率每阶 +1）')
 const sg = new SnakeGame({ specialFood: false, speed: 'mid' })
 sg.start()
 check('初始阶段 0、倍率 ×1', sg.stage() === 0 && sg.multiplier() === 1,
   `stage=${sg.stage()} mul=${sg.multiplier()}`)
-sg.score = 50
-check('50 分进入阶段 1（倍率 ×2）', sg.stage() === 1 && sg.multiplier() === 2,
-  `stage=${sg.stage()} mul=${sg.multiplier()}`)
-sg.score = 100
-check('100 分进入阶段 2（倍率 ×4）', sg.stage() === 2 && sg.multiplier() === 4,
-  `stage=${sg.stage()} mul=${sg.multiplier()}`)
-sg.score = 200
-check('200 分进入阶段 3（倍率 ×8）', sg.stage() === 3 && sg.multiplier() === 8,
-  `stage=${sg.stage()} mul=${sg.multiplier()}`)
-sg.score = 400
-check('400 分进入阶段 4（倍率 ×16）', sg.stage() === 4 && sg.multiplier() === 16,
-  `stage=${sg.stage()} mul=${sg.multiplier()}`)
-// 速度随阶段递增（间隔变小）
+const stageCases = [[20, 1, 2], [40, 2, 3], [60, 3, 4], [100, 4, 5],
+                    [200, 5, 6], [300, 6, 7], [400, 7, 8]]
+let stageOk = true
+const details = []
+for (const [score, stg, mul] of stageCases) {
+  sg.score = score
+  const ok = sg.stage() === stg && sg.multiplier() === mul
+  if (!ok) stageOk = false
+  details.push(`${score}分:阶段${sg.stage()}/×${sg.multiplier()}`)
+}
+check('各分数段阶段与倍率正确', stageOk, details.join(' '))
+// 速度随阶段变快
 const iv0 = new SnakeGame({ specialFood: false }).interval()
-const iv4 = sg.interval()
-check('每个阶段速度相应增加', iv4 < iv0, `${iv0}ms → ${iv4}ms`)
-// 连击：阶段 1 时吃普通豆得 2 分
+sg.score = 400
+check('阶段提升使蛇速变快', sg.interval() < iv0, `${iv0}ms → ${sg.interval()}ms`)
+// 连击：20 分后吃普通豆得 2 分；40 分后得 3 分
 const cg = new SnakeGame({ specialFood: false })
-cg.start(); cg.score = 50
+cg.start(); cg.score = 20
 cg.food = { x: cg.snake[0].x + 1, y: cg.snake[0].y, type: 'normal' }
-const cb = cg.score
+let cb = cg.score
 cg.tick()
-check('连击生效：阶段 1 吃普通豆 +2 分', cg.score - cb === 2, `+${cg.score - cb}`)
+check('20 分后吃普通豆 +2 分', cg.score - cb === 2, `+${cg.score - cb}`)
+cg.score = 40
+cg.food = { x: cg.snake[0].x + 1, y: cg.snake[0].y, type: 'normal' }
+cb = cg.score
+cg.tick()
+check('40 分后吃普通豆 +3 分', cg.score - cb === 3, `+${cg.score - cb}`)
 
 section('速度规则')
 const gm = makeGame({ speed: 'mid' })

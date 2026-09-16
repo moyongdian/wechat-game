@@ -100,31 +100,38 @@ Page({
   /* ================= Canvas 初始化 ================= */
   initCanvas() {
     const query = wx.createSelectorQuery()
-    query.select('#gameCanvas').fields({ node: true, size: true }).exec((res) => {
-      if (!res || !res[0] || !res[0].node) {
-        // 极端情况下延迟重试一次
-        setTimeout(() => this.initCanvas(), 120)
+    query.select('#gameCanvas').fields({ node: true, size: true })
+    query.select('#foodCanvas').fields({ node: true, size: true })
+    query.exec((res) => {
+      if (!res || !res[0] || !res[0].node || !res[1] || !res[1].node) {
+        setTimeout(() => this.initCanvas(), 120)     // 极端情况延迟重试
         return
       }
-      const canvas = res[0].node
-      const width = res[0].width
-      const height = res[0].height
       const dpr = (wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : wx.getSystemInfoSync().pixelRatio) || 2
+      const setup = (item) => {
+        const canvas = item.node
+        const width = item.width
+        const height = item.height
+        canvas.width = width * dpr
+        canvas.height = height * dpr
+        const ctx = canvas.getContext('2d')
+        ctx.scale(dpr, dpr)
+        return { canvas, ctx, width, height }
+      }
+      const main = setup(res[0])
+      const food = setup(res[1])
 
-      canvas.width = width * dpr
-      canvas.height = height * dpr
-      const ctx = canvas.getContext('2d')
-      ctx.scale(dpr, dpr)
-
-      this.canvas = canvas
-      this.ctx = ctx
+      this.canvas = main.canvas
+      this.ctx = main.ctx
+      this.foodCanvas = food.canvas
+      this.foodCtx = food.ctx
       this.dpr = dpr
       // 让网格精确填满消息区内框：墙的位置即界面边框位置
       this.cellsX = COLS
-      this.cellsY = Math.max(8, Math.round(COLS * (height / width)))
-      this.vw = width
-      this.vh = height
-      this.cell = width / COLS
+      this.cellsY = Math.max(8, Math.round(COLS * (main.height / main.width)))
+      this.vw = main.width
+      this.vh = main.height
+      this.cell = main.width / COLS
 
       this.createGame()
       this.draw()
@@ -205,6 +212,7 @@ Page({
       : (cb) => setTimeout(cb, 16)
     const frame = () => {
       this.draw()
+      this.drawFoodLayer()
       this.renderRaf = raf(frame)
     }
     this.renderRaf = raf(frame)
@@ -312,8 +320,6 @@ Page({
     ctx.lineWidth = 1
     ctx.strokeRect(ox, oy, cell * this.cellsX, cell * this.cellsY)
 
-    // 豆子：各类特殊豆在形状/大小/颜色上区分（见 drawFood）
-    this.drawFood(ctx, g.food, ox, oy, cell)
 
     // 蛇：粗圆头线段连接各节中心 → 无缝隙
     // 平滑移动：在上一 tick 位置与当前位置之间按进度插值，
@@ -423,6 +429,17 @@ Page({
    *  - 缩小豆：白色小圆（最小）
    *  - 红包：红色圆角矩形（最大）+ 金边与金色封口
    */
+  /** 豆子层：单独画布绘制，确保显示在聊天消息之上 */
+  drawFoodLayer() {
+    const ctx = this.foodCtx
+    if (!ctx || !this.game) return
+    const cell = this.cell
+    ctx.clearRect(0, 0, this.vw, this.vh)
+    const ox = 0, oy = 0
+    this.drawFood(ctx, this.game.food, ox, oy, cell)
+    if (this.game.magnetFood) this.drawFood(ctx, this.game.magnetFood, ox, oy, cell)
+  },
+
   /**
    * 画豆子：种类靠「形状 + 颜色」区分，尺寸整体加大，统一白色描边
    *  - 普通豆：黑色圆
@@ -435,13 +452,13 @@ Page({
     if (!food) return
     const cx = ox + food.x * cell + cell / 2
     const cy = oy + food.y * cell + cell / 2
-    const base = cell * 0.32            // 基础半径（整体加大）
+    const base = cell * 0.38            // 基础半径（再次加大）
     const type = food.type || 'normal'
     const ringW = Math.max(2, cell * 0.11)   // 统一的描边宽度
 
     // ── 红包：最大 ──
     if (type === 'packet') {
-      const w = cell * 1.0, h = cell * 1.16
+      const w = cell * 1.06, h = cell * 1.22
       ctx.fillStyle = '#FA5151'
       ctx.strokeStyle = '#FFFFFF'
       ctx.lineWidth = ringW
@@ -459,7 +476,7 @@ Page({
 
     // ── 双倍豆：方块 + ×2 ──
     if (type === 'double') {
-      const d = cell * 0.66
+      const d = cell * 0.72
       ctx.fillStyle = '#FFFFFF'
       ctx.strokeStyle = '#F59E0B'
       ctx.lineWidth = ringW
@@ -478,7 +495,7 @@ Page({
       const r = base * 1.25
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
-      ctx.fillStyle = '#111111'
+      ctx.fillStyle = '#000000'
       ctx.fill()
       ctx.lineWidth = Math.max(2, cell * 0.11)
       ctx.strokeStyle = '#FFFFFF'
@@ -511,8 +528,8 @@ Page({
 
     // ── 圆形类：金豆 / 减速豆 / 普通豆（尺寸与颜色不同，统一白描边）──
     const spec = {
-      gold:   { r: base * 1.35, fill: '#FFD700' },
-      slow:   { r: base * 1.15, fill: '#1989FA' },
+      gold:   { r: base * 1.35, fill: '#E6A700' },
+      slow:   { r: base * 1.15, fill: '#0F6FD1' },
       normal: { r: base,        fill: '#000000' }
     }[type] || { r: base, fill: '#000000' }
 

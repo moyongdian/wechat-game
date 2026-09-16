@@ -37,12 +37,12 @@ const INVINCIBLE_SECONDS = 3
  *  - 每个阶段蛇速提升一档（STAGE_SPEED_STEP 毫秒）
  *  - 每进入一个阶段，连击倍率 +1（吃豆得分翻倍）
  */
-const STAGE_THRESHOLDS = [50, 100, 200, 400]
-const STAGE_SPEED_STEP = 6      // 每阶段减少的移动间隔（毫秒）
+const STAGE_THRESHOLDS = [20, 40, 60, 100]
+const STAGE_TAIL_STEP = 100     // 第 4 阶段后，每增加 100 分进入下一个阶段
+const STAGE_SPEED_STEP = 10     // 每阶段减少的移动间隔（毫秒，速度变快更明显）
 const SCORE_SPEED_STEP = 2      // 每 10 分减少的移动间隔（毫秒）
 const SCORE_SPEED_UNIT = 10
 const MIN_INTERVAL = 60         // 移动间隔下限
-const COMBO_DOUBLE = 2          // 每阶段连击倍率倍数
 
 /** 特殊豆出现概率（说明书建议 20%-30%） */
 /** 特殊豆出现概率区间（每次生成时在区间内随机） */
@@ -330,8 +330,8 @@ class SnakeGame {
     // 双倍豆：吃豆得分翻倍
     if (this.hasEffect('double')) gained *= 2
 
-    // 连击：每达到一个分数段，吃豆得分再翻倍
-    const mul = Math.pow(COMBO_DOUBLE, this.stage())
+    // 连击：每达到一个分数段，吃豆得分的倍数 +1
+    const mul = this.multiplier()
     if (mul > 1) gained *= mul
 
     this.score += gained
@@ -341,15 +341,26 @@ class SnakeGame {
   }
 
   /** 当前所处分数段（0 起） */
+  /**
+   * 当前阶段数（0 起）
+   * 阈值：20 / 40 / 60 / 100，之后每增加 100 分再进一阶：
+   * 200 / 300 / 400 ...
+   */
   stage() {
     let n = 0
     for (const t of STAGE_THRESHOLDS) if (this.score >= t) n++
+    if (this.score >= 200) {
+      n += Math.floor((this.score - 200) / STAGE_TAIL_STEP) + 1
+    }
     return n
   }
 
-  /** 当前连击倍率（1 倍起，每阶段翻倍） */
+  /**
+   * 当前连击倍率：1 + 阶段数
+   * 即 20 分后 ×2、40 分后 ×3、60 分后 ×4、100 分后 ×5，依次类推
+   */
   multiplier() {
-    return Math.pow(COMBO_DOUBLE, this.stage())
+    return 1 + this.stage()
   }
 
   /** 当前移动间隔（含分数段加速与特殊豆效果） */
