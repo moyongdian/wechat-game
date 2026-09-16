@@ -93,6 +93,28 @@ section('游戏页：豆子显示在假消息之上（双画布分层）')
   check('豆子画布已初始化', src.includes('this.foodCtx') && src.includes("select('#foodCanvas')"))
 }
 
+section('游戏页：多豆渲染与红包提示')
+{
+  const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxss'), 'utf8')
+  check('渲染场上所有普通豆', src.includes('(g.foods || [])'))
+  check('渲染特殊豆', src.includes('if (g.special) beans.push(g.special)'))
+  check('存在「红包来啦」提示', wxml.includes('packet-banner') && wxml.includes('红包来啦'))
+  check('「红包来啦」字号与设置键一致（30rpx）', (() => {
+    const m = /\.packet-banner\s*\{[^}]*font-size:\s*(\d+)rpx/.exec(wxss)
+    const k = /\.center-text\s*\{[^}]*font-size:\s*(\d+)rpx/.exec(wxss)
+    return m && k && m[1] === k[1]
+  })())
+  check('「红包来啦」为淡红色', /packet-banner[^}]*rgba\(250,\s*81,\s*81,\s*0\.\d+\)/.test(wxss))
+  check('红包得分的字号已加大（≥100rpx）', (() => {
+    const m = /\.packet\s*\{[^}]*font-size:\s*(\d+)rpx/.exec(wxss)
+    return m && Number(m[1]) >= 100
+  })())
+  check('红包得分停留更久（动画 ≥2s）', /animation:\s*pop\s+([\d.]+)s/.test(wxss) &&
+    Number(/animation:\s*pop\s+([\d.]+)s/.exec(wxss)[1]) >= 2)
+}
+
 section('游戏页：暂停 / 恢复时聊天定时器的清理（曾导致假消息不再更新）')
 {
   const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')

@@ -45,6 +45,14 @@ const SCORE_SPEED_UNIT = 10
 const MIN_INTERVAL = 60         // 移动间隔下限
 
 /** 特殊豆出现概率（说明书建议 20%-30%） */
+/** 普通豆规则：每 3 秒生成一颗，场上最多同时存在 5 颗，不会自动消失 */
+const NORMAL_SPAWN_SECONDS = 3
+const MAX_NORMAL_BEANS = 5
+/** 特殊豆存在时长（秒），到期自动消失 */
+const SPECIAL_LIFE_SECONDS = 8
+/** 普通豆基础分值 */
+const NORMAL_POINTS = 1
+
 /** 特殊豆出现概率区间（每次生成时在区间内随机） */
 const SPECIAL_RATE_MIN = 0.40
 const SPECIAL_RATE_MAX = 0.50
@@ -93,9 +101,10 @@ class SnakeGame {
     this.effects = {}          // { double: 剩余秒, slow: 剩余秒 }
     this.packetPopup = 0       // 红包弹窗分数（>0 时前端展示）
     this.remainSeconds = this.mode === MODES.TIMED ? this.timedSeconds : 0
-    this.food = null
-    this.magnetFood = null
-    this.spawnFood()
+    this.foods = []
+    this.special = null
+    this.normalSpawnTimer = NORMAL_SPAWN_SECONDS
+    this.spawnNormalBean()
     return this
   }
 
@@ -153,6 +162,8 @@ class SnakeGame {
   tickSecond() {
     if (this.state !== 'running') return
     this.tickEffects()
+    this.spawnNormalBeanTick()      // 普通豆：每 3 秒一颗，上限 5
+    this.spawnSpecialTick()         // 特殊豆：8 秒后自动消失
     if (this.invincible > 0) this.invincible = Math.max(0, this.invincible - 1)
     if (this.mode !== MODES.TIMED) return
     this.remainSeconds = Math.max(0, this.remainSeconds - 1)
@@ -172,32 +183,19 @@ class SnakeGame {
 
   /**
    * 磁铁效果：吸附半径内的豆子每 tick 向蛇头靠近一格
-   * 被吸附的豆子放入 magnetFood，可被正常吃掉
+   * 作用于场上所有豆子（普通豆与特殊豆）
    */
   applyMagnet() {
-    if (!this.hasEffect('magnet')) {
-      // 效果结束后，把未吃掉的吸附豆放回普通位置
-      if (this.magnetFood) { this.food = this.magnetFood; this.magnetFood = null }
-      return
-    }
+    if (!this.hasEffect('magnet')) return
     const head = this.snake[0]
     const R = 6                                   // 吸附半径（格）
-    const candidates = [this.food, this.magnetFood].filter(Boolean)
-    for (const f of candidates) {
+    for (const f of this.allBeans()) {
       const d = Math.abs(f.x - head.x) + Math.abs(f.y - head.y)
       if (d > R || d === 0) continue
       // 朝蛇头方向移动一格（优先走差距较大的轴）
       const dx = head.x - f.x, dy = head.y - f.y
       if (Math.abs(dx) >= Math.abs(dy)) f.x += Math.sign(dx)
       else f.y += Math.sign(dy)
-    }
-    // 若常规豆已靠近蛇头，标记为吸附豆（便于绘制与判定）
-    if (this.food) {
-      const d = Math.abs(this.food.x - head.x) + Math.abs(this.food.y - head.y)
-      if (d <= R && !this.magnetFood) {
-        this.magnetFood = this.food
-        this.food = null
-      }
     }
   }
 
@@ -217,16 +215,68 @@ class SnakeGame {
     return free[Math.floor(Math.random() * free.length)]
   }
 
-  /** 生成豆子：普通豆或随机特殊豆（概率 SPECIAL_RATE_MID） */
-  spawnFood() {
+  /** 生成一颗普通豆（不超过上限） */
+  spawnNormalBean() {
+    if (this.foods.length >= MAX_NORMAL_BEANS) return null
     const cell = this.randomFreeCell()
-    if (!cell) { this.food = null; return }
-    let type = 'normal'
-    const rate = SPECIAL_RATE_MIN + Math.random() * (SPECIAL_RATE_MAX - SPECIAL_RATE_MIN)
-    if (this.specialFood && Math.random() < rate) {
-      type = SPECIAL_KEYS[Math.floor(Math.random() * SPECIAL_KEYS.length)]
+    if (!cell) return null
+    const bean = { x: cell.x, y: cell.y, type: 'normal' }
+    this.foods.push(bean)
+    return bean
+  }
+
+  /**
+   * 普通豆计时：每 3 秒生成一颗，最多同时存在 5 颗。
+   * 普通豆不会自动消失，只能被玩家吃掉。
+   */
+  spawnNormalBeanTick() {
+    if (this.foods.length >= MAX_NORMAL_BEANS) {
+      this.normalSpawnTimer = 1      // 满额时不累积，满员解除后 1 秒内补上
+      return
     }
-    this.food = { x: cell.x, y: cell.y, type }
+    this.normalSpawnTimer -= 1
+    if (this.normalSpawnTimer <= 0) {
+      this.spawnNormalBean()
+      this.normalSpawnTimer = NORMAL_SPAWN_SECONDS
+    }
+  }
+
+  /**
+   * 特殊豆计时：场上至多一颗；8 秒后自动消失；
+   * 消失后（或原本没有时）按 40%~50% 概率在每秒判定中尝试生成。
+   */
+  spawnSpecialTick() {
+    if (this.special) {
+      this.special.left -= 1
+      if (this.special.left <= 0) this.special = null      // 8 秒到期自动消失
+      return
+    }
+    const rate = SPECIAL_RATE_MIN + Math.random() * (SPECIAL_RATE_MAX - SPECIAL_RATE_MIN)
+    if (this.specialFood && Math.random() < rate) this.spawnSpecial()
+  }
+
+  /** 生成一颗随机特殊豆（存活 8 秒） */
+  spawnSpecial() {
+    const cell = this.randomFreeCell()
+    if (!cell) return null
+    const type = SPECIAL_KEYS[Math.floor(Math.random() * SPECIAL_KEYS.length)]
+    this.special = {
+      x: cell.x, y: cell.y, type,
+      left: SPECIAL_LIFE_SECONDS                      // 剩余存活秒数
+    }
+    return this.special
+  }
+
+  /** 当前场上所有可吃的豆子 */
+  allBeans() {
+    const list = this.foods.slice()
+    if (this.special) list.push(this.special)
+    return list
+  }
+
+  /** 兼容旧接口：返回一颗豆子（用于渲染/测试） */
+  get food() {
+    return this.foods.length ? this.foods[0] : (this.special || null)
   }
 
   /* ---------------- 单步推进 ---------------- */
@@ -271,7 +321,8 @@ class SnakeGame {
 
     // 撞自己（蛇尾即将移动，因此允许移动到当前尾部位置）
     const eating = (f) => f && nx === f.x && ny === f.y
-    const willEat = eating(this.food) || eating(this.magnetFood)
+    const targetBean = this.allBeans().find(eating)
+    const willEat = !!targetBean
     const body = willEat ? this.snake : this.snake.slice(0, -1)
     const hitSelf = body.some((s) => s.x === nx && s.y === ny)
     if (hitSelf) {
@@ -293,8 +344,10 @@ class SnakeGame {
     let special = null
 
     if (willEat) {
-      const target = eating(this.food) ? this.food : this.magnetFood
-      const res = this.consume(target)
+      // 先从场上移除该豆子，再结算（普通豆吃掉即消失，特殊豆同理）
+      if (this.special && targetBean === this.special) this.special = null
+      else this.foods = this.foods.filter((b) => b !== targetBean)
+      const res = this.consume(targetBean)
       gained = res.gained
       special = res.special
     } else {
@@ -336,8 +389,8 @@ class SnakeGame {
 
     this.score += gained
     this.comboCount += 1
-    this.spawnFood()
-    return { gained, special, stage: this.stage(), multiplier: mul }
+    // 被吃掉的豆子从场上移除（普通豆与特殊豆均已由其来源处理）
+    return { gained, special, stage: this.stage(), multiplier: mul, bean: food }
   }
 
   /** 当前所处分数段（0 起） */
@@ -422,7 +475,8 @@ class SnakeGame {
       snake: this.snake, food: this.food,
       score: this.score, state: this.state, alive: this.alive,
       stage: this.stage(), multiplier: this.multiplier(),
-      invincible: this.invincible, effects: this.effects, magnetFood: this.magnetFood,
+      invincible: this.invincible, effects: this.effects,
+      foods: this.foods, special: this.special,
       remainSeconds: this.remainSeconds,
       overReason: this.overReason,
       packetPopup: this.packetPopup
@@ -430,4 +484,6 @@ class SnakeGame {
   }
 }
 
-module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MIN, SPECIAL_RATE_MAX, SPECIAL_RATE_MID, INVINCIBLE_SECONDS, STAGE_THRESHOLDS }
+module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MIN, SPECIAL_RATE_MAX,
+  SPECIAL_RATE_MID, INVINCIBLE_SECONDS, STAGE_THRESHOLDS,
+  NORMAL_SPAWN_SECONDS, MAX_NORMAL_BEANS, SPECIAL_LIFE_SECONDS }

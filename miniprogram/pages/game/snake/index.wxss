@@ -238,10 +238,11 @@ page {
   left: 50%; top: 42%;
   transform: translate(-50%, -50%);
   color: #FA5151;
-  font-size: 72rpx;
+  font-size: 130rpx;          /* 加大：原 72rpx */
+  font-weight: 700;
   font-weight: 700;
   text-shadow: 0 4rpx 16rpx rgba(250,81,81,0.35);
-  animation: pop 1.2s ease-out;
+  animation: pop 2.4s ease-out;   /* 停留更久：原 1.2s */
   pointer-events: none;
   z-index: 7;
 }
@@ -455,4 +456,24 @@ page {
   margin-top: 8rpx;
   font-size: 20rpx;
   color: #B2B2B2;
+}
+
+/* 「红包来啦」提示：淡红色，字号与设置键一致（30rpx） */
+.packet-banner {
+  position: absolute;
+  left: 50%; top: 30%;
+  transform: translate(-50%, -50%);
+  color: rgba(250, 81, 81, 0.55);   /* 淡红色 */
+  font-size: 30rpx;                 /* 与中间设置键同字号 */
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  pointer-events: none;
+  z-index: 7;
+  animation: bannerIn 1.6s ease-out;
+}
+@keyframes bannerIn {
+  0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.9); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1); }
 }

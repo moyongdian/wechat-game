@@ -84,7 +84,9 @@
       <text class="hint-text">已暂停</text>
     </view>
 
-    <!-- 红包飘字 -->
+    <!-- 红包来啦（淡红色，字号与设置键一致 30rpx） -->
+    <view class="packet-banner" wx:if="{{packetBanner}}">红包来啦</view>
+    <!-- 红包得分（字号加大、停留更久） -->
     <view class="packet" wx:if="{{packetText}}">{{packetText}}</view>
 
     <!-- 轻提示 -->

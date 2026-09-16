@@ -38,6 +38,8 @@ Page({
     result: { show: false, title: '', content: '' },
     // 红包飘字
     packetText: '',
+    packetBanner: false,   // 「红包来啦」提示
+    beanCount: 0,          // 场上普通豆数量
     toastText: ''
   },
 
@@ -95,6 +97,7 @@ Page({
     this.stopChatTimer()
     try { this.audioEat && this.audioEat.destroy() } catch (e) {}
     try { this.audioSpecial && this.audioSpecial.destroy() } catch (e) {}
+    if (this.packetTimer) clearTimeout(this.packetTimer)
   },
 
   /* ================= Canvas 初始化 ================= */
@@ -173,7 +176,8 @@ Page({
       this.game.tickSecond()
       this.setData({
         remainSeconds: this.game.remainSeconds,
-        effectText: this.effectText()
+        effectText: this.effectText(),
+        beanCount: (this.game.foods || []).length
       })
       if (this.game.state === 'over') this.onGameOver()
     }, 1000)
@@ -262,8 +266,11 @@ Page({
     if (g.packetPopup) {
       const txt = '+' + g.packetPopup
       g.packetPopup = 0
-      this.setData({ packetText: txt })
-      setTimeout(() => this.setData({ packetText: '' }), 1200)
+      // 红包：先弹出「红包来啦」提示，再显示更大的得分数字，停留更久
+      this.setData({ packetBanner: true, packetText: txt })
+      setTimeout(() => this.setData({ packetBanner: false }), 1600)
+      if (this.packetTimer) clearTimeout(this.packetTimer)
+      this.packetTimer = setTimeout(() => this.setData({ packetText: '' }), 2600)
     }
     this.draw()
   },
@@ -436,8 +443,10 @@ Page({
     const cell = this.cell
     ctx.clearRect(0, 0, this.vw, this.vh)
     const ox = 0, oy = 0
-    this.drawFood(ctx, this.game.food, ox, oy, cell)
-    if (this.game.magnetFood) this.drawFood(ctx, this.game.magnetFood, ox, oy, cell)
+    const g = this.game
+    const beans = (g.foods || []).slice()
+    if (g.special) beans.push(g.special)
+    for (const b of beans) this.drawFood(ctx, b, ox, oy, cell)
   },
 
   /**
