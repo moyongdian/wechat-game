@@ -1,7 +1,7 @@
 <!-- 游戏页：聊天贪吃蛇（伪装成聊天窗口） -->
 <view class="page">
 
-  <!-- 顶部：聊天对象名称 + 返回 + 三个点 -->
+  <!-- 顶部：左上分数 / 中间聊天对象名称 / 右上设置 -->
   <view class="navbar" style="padding-top:{{statusBarHeight}}px">
     <view class="navbar-inner" style="height:{{navHeight}}px">
       <view class="nav-left">
@@ -63,21 +63,29 @@
     <view class="toast" wx:if="{{toastText}}">{{toastText}}</view>
   </view>
 
-  <!-- 底部操作栏：仅十字方向键 -->
+  <!-- 底部操作栏：仅十字方向键（左右铺满整行，按键间保留间距） -->
   <view class="actionbar" style="padding-bottom:{{safeBottom}}px">
-    <view class="cross">
-      <view class="cross-row">
-        <view class="dbtn" data-dir="up" bindtap="onDir" hover-class="dbtn-hover"><view class="arw up"></view></view>
+    <view class="pad">
+      <view class="pad-row">
+        <view class="dbtn" data-dir="up" bindtap="onDir" hover-class="dbtn-hover">
+          <view class="arw up"></view>
+        </view>
       </view>
-      <view class="cross-row">
-        <view class="dbtn" data-dir="left" bindtap="onDir" hover-class="dbtn-hover"><view class="arw left"></view></view>
-        <view class="dbtn" data-dir="right" bindtap="onDir" hover-class="dbtn-hover"><view class="arw right"></view></view>
+      <view class="pad-row">
+        <view class="dbtn side" data-dir="left" bindtap="onDir" hover-class="dbtn-hover">
+          <view class="arw left"></view>
+        </view>
+        <view class="dbtn side" data-dir="right" bindtap="onDir" hover-class="dbtn-hover">
+          <view class="arw right"></view>
+        </view>
       </view>
-      <view class="cross-row">
-        <view class="dbtn" data-dir="down" bindtap="onDir" hover-class="dbtn-hover"><view class="arw down"></view></view>
+      <view class="pad-row">
+        <view class="dbtn" data-dir="down" bindtap="onDir" hover-class="dbtn-hover">
+          <view class="arw down"></view>
+        </view>
       </view>
     </view>
-    <text class="bar-hint">点消息区暂停 / 双击伪装</text>
+    <text class="bar-hint">点消息区暂停 · 双击伪装</text>
   </view>
 
   <!-- 结算弹窗（伪装成消息发送失败） -->
