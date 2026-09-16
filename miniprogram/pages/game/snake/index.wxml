@@ -4,9 +4,13 @@
   <!-- 顶部：聊天对象名称 + 返回 + 三个点 -->
   <view class="navbar" style="padding-top:{{statusBarHeight}}px">
     <view class="navbar-inner" style="height:{{navHeight}}px">
-      <view class="nav-back" bindtap="onBack" hover-class="nav-hover">
-        <view class="ico-back"></view>
-        <text class="nav-back-num">{{score}}</text>
+      <view class="nav-left">
+        <view class="nav-back" bindtap="onBack" hover-class="nav-hover">
+          <view class="ico-back"></view>
+        </view>
+        <view class="nav-score">
+          <text class="nav-score-val">{{score}}</text>
+        </view>
       </view>
       <view class="nav-title" bindtap="onTitleTap">
         <text class="ellipsis">{{chatName}}</text>
@@ -59,7 +63,7 @@
     <view class="toast" wx:if="{{toastText}}">{{toastText}}</view>
   </view>
 
-  <!-- 底部操作栏：仿聊天输入栏 + 十字方向键 -->
+  <!-- 底部操作栏：仅十字方向键 -->
   <view class="actionbar" style="padding-bottom:{{safeBottom}}px">
     <view class="cross">
       <view class="cross-row">
@@ -67,29 +71,13 @@
       </view>
       <view class="cross-row">
         <view class="dbtn" data-dir="left" bindtap="onDir" hover-class="dbtn-hover"><view class="arw left"></view></view>
-        <view class="dbtn center" bindtap="onPauseToggle">
-          <text class="center-text">{{running ? '暂停' : '继续'}}</text>
-        </view>
         <view class="dbtn" data-dir="right" bindtap="onDir" hover-class="dbtn-hover"><view class="arw right"></view></view>
       </view>
       <view class="cross-row">
         <view class="dbtn" data-dir="down" bindtap="onDir" hover-class="dbtn-hover"><view class="arw down"></view></view>
       </view>
     </view>
-
-    <view class="side-btns">
-      <view class="sbtn" bindtap="onRestart" hover-class="sbtn-hover">
-        <text>重开</text>
-      </view>
-      <view class="sbtn" bindtap="onOpenSettings" hover-class="sbtn-hover">
-        <text>设置</text>
-      </view>
-      <view class="stat">
-        <text class="stat-label">最高</text>
-        <text class="stat-val">{{best}}</text>
-      </view>
-      <text class="effect" wx:if="{{effectText}}">{{effectText}}</text>
-    </view>
+    <text class="bar-hint">点消息区暂停 / 双击伪装</text>
   </view>
 
   <!-- 结算弹窗（伪装成消息发送失败） -->

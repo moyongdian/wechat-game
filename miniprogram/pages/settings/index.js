@@ -152,6 +152,14 @@ Page({
     })
   },
 
+  /** 重新开始本局：标记后返回游戏页，由游戏页 onShow 执行重开 */
+  onRestartGame() {
+    const app = getApp()
+    app.globalData.restartOnReturn = true
+    util.toast('已重开')
+    setTimeout(() => wx.navigateBack(), 300)
+  },
+
   onBackHome() {
     wx.navigateBack({ delta: 2, fail: () => wx.navigateBack() })
   }

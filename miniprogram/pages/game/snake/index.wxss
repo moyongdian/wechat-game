@@ -32,17 +32,32 @@ page {
   position: relative;
 }
 
+.nav-left {
+  display: flex;
+  align-items: center;
+  min-width: 200rpx;
+  height: 72rpx;
+}
 .nav-back {
   display: flex;
   align-items: center;
-  min-width: 120rpx;
+  justify-content: center;
+  width: 72rpx;
   height: 72rpx;
+  flex-shrink: 0;
 }
-.nav-back-num {
-  font-size: 32rpx;
-  color: var(--text);
-  margin-left: 12rpx;
+/* 左上角分数 */
+.nav-score {
+  display: flex;
+  align-items: baseline;
+  margin-left: 8rpx;
+}
+.nav-score-val {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--green);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 .ico-back {
   width: 22rpx; height: 22rpx;
@@ -178,59 +193,49 @@ page {
   z-index: 8;
 }
 
-/* ---------- 底部操作栏 ---------- */
+/* ---------- 底部操作栏：仅十字方向键 ---------- */
 .actionbar {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12rpx 24rpx;
+  justify-content: center;
+  padding: 16rpx 24rpx;
   background: #F7F7F7;
   border-top: 1rpx solid var(--line);
   flex-shrink: 0;
 }
 
+/* 操作提示：位于十字键右侧，不遮挡按键 */
+.bar-hint {
+  position: absolute;
+  right: 24rpx;
+  bottom: 24rpx;
+  font-size: 20rpx;
+  color: #B2B2B2;
+  max-width: 180rpx;
+  text-align: right;
+  line-height: 1.5;
+}
+
 .cross { display: flex; flex-direction: column; align-items: center; }
-.cross-row { display: flex; align-items: center; }
+.cross-row { display: flex; align-items: center; justify-content: center; }
 .dbtn {
-  width: 88rpx; height: 88rpx;   /* ≥ 44px，单手可操作（说明书 §5.3） */
-  margin: 4rpx;
-  border-radius: 16rpx;
+  width: 108rpx; height: 108rpx;   /* ≥ 44px，单手可操作（说明书 §5.3） */
+  margin: 6rpx;
+  border-radius: 20rpx;
   background: #FFFFFF;
   border: 1rpx solid var(--line);
   display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
 }
-.dbtn-hover { background: #E9E9E9; }
-.dbtn.center { background: #EFEFEF; }
-.center-text { font-size: 26rpx; color: var(--text); }
+.dbtn-hover { background: #E2E2E2; }
 
 /* 方向箭头（纯 CSS） */
-.arw { width: 0; height: 0; border: 16rpx solid transparent; }
-.arw.up    { border-bottom-color: #191919; margin-top: -8rpx; }
-.arw.down  { border-top-color: #191919; margin-bottom: -8rpx; }
-.arw.left  { border-right-color: #191919; margin-left: -8rpx; }
-.arw.right { border-left-color: #191919; margin-right: -8rpx; }
-
-.side-btns {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12rpx;
-}
-.sbtn {
-  min-width: 140rpx;
-  height: 68rpx;
-  padding: 0 24rpx;
-  border-radius: 12rpx;
-  background: #FFFFFF;
-  border: 1rpx solid var(--line);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 27rpx; color: var(--text);
-}
-.sbtn-hover { background: #E9E9E9; }
-.stat { display: flex; align-items: baseline; }
-.stat-label { font-size: 22rpx; color: var(--text-2); margin-right: 8rpx; }
-.stat-val { font-size: 30rpx; color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
-.effect { font-size: 20rpx; color: #FA5151; }
+.arw { width: 0; height: 0; border: 20rpx solid transparent; }
+.arw.up    { border-bottom-color: #191919; margin-top: -10rpx; }
+.arw.down  { border-top-color: #191919; margin-bottom: -10rpx; }
+.arw.left  { border-right-color: #191919; margin-left: -10rpx; }
+.arw.right { border-left-color: #191919; margin-right: -10rpx; }
 
 /* ---------- 结算弹窗（伪装） ---------- */
 .mask {

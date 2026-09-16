@@ -130,6 +130,10 @@
       <text class="label">恢复默认设置</text>
       <view class="arrow"></view>
     </view>
+    <view class="row" bindtap="onRestartGame">
+      <text class="label">重新开始本局</text>
+      <view class="arrow"></view>
+    </view>
     <view class="row" bindtap="onBackHome">
       <text class="label">返回首页</text>
       <view class="arrow"></view>

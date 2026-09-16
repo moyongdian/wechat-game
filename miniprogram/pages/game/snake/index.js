@@ -63,6 +63,14 @@ Page({
   onReady() { this.buildBubbles() },
 
   onShow() {
+    const app = getApp()
+    // 设置页里点了「重新开始本局」
+    if (app.globalData.restartOnReturn) {
+      app.globalData.restartOnReturn = false
+      this.createGame()
+      this.onStart()
+      return
+    }
     // 从设置页返回：同步名称与设置
     const s = settings.get()
     this.setData({
