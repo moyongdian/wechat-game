@@ -70,7 +70,7 @@ class SnakeGame {
     this.alive = true
     this.state = 'ready'       // ready | running | paused | over
     this.shield = 0            // 护盾次数
-    this.effects = {}          // { double: 剩余秒, slow: ..., fast: ... }
+    this.effects = {}          // { double: 剩余秒, slow: 剩余秒 }
     this.packetPopup = 0       // 红包弹窗分数（>0 时前端展示）
     this.remainSeconds = this.mode === MODES.TIMED ? this.timedSeconds : 0
     this.food = null
