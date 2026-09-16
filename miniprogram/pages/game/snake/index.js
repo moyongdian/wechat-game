@@ -214,8 +214,6 @@ Page({
   stopLoop() {
     if (this.timer) { clearTimeout(this.timer); this.timer = null }
     if (this.secondTimer) { clearInterval(this.secondTimer); this.secondTimer = null }
-    if (this.boostTimer) { clearTimeout(this.boostTimer); this.boostTimer = null }
-    this.boostDir = null
     this.stopRenderLoop()
   },
 
@@ -633,43 +631,8 @@ Page({
     util.vibrate(s.vibrate)
   },
 
-  /** 长按方向键开始：蛇速提高 1 倍（表现为按得越久走得越快） */
-  /**
-   * 长按方向键开始：蛇速提高 1 倍
-   * 注意顺序：必须「先 stopLoop() 再设置 boostDir」——
-   * stopLoop() 内部会重置 boostDir，顺序反了会让加速循环第一步就退出（蛇卡住不动）
-   */
-  onDirLongStart(e) {
-    const dir = e.currentTarget.dataset.dir
-    this.onDir(e)                                  // 先按一次该方向
-    if (!this.game || this.game.state !== 'running') return
-    this.stopLoop()                                // 先停常规循环（会清空 boostDir）
-    this.boostDir = dir                            // 再设置加速方向
-    this.startBoostLoop()
-  },
 
-  /** 长按结束：恢复正常速度 */
-  onDirLongEnd() {
-    this.boostDir = null
-    if (this.boostTimer) { clearTimeout(this.boostTimer); this.boostTimer = null }
-    // 恢复常规速度循环
-    if (this.game && this.game.state === 'running') this.startLoop()
-  },
 
-  /** 加速循环：按常规间隔的一半推进（速度提高 1 倍） */
-  startBoostLoop() {
-    const step = () => {
-      if (!this.game || this.game.state !== 'running' || !this.boostDir) return
-      // 加速期间保持该方向
-      this.game.dirName = this.boostDir
-      this.game.dir = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
-                        left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }[this.boostDir]
-      this.stepOnce()
-      if (!this.game || this.game.state !== 'running') return
-      this.boostTimer = setTimeout(step, Math.max(30, this.game.interval() / 2))
-    }
-    this.boostTimer = setTimeout(step, Math.max(30, this.game.interval() / 2))
-  },
 
   /* ---------- 消息区滑动控制方向（说明书 §5.3） ---------- */
   onTouchStart(e) {

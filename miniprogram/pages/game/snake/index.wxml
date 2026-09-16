@@ -111,23 +111,23 @@
   <view class="actionbar" wx:if="{{!paused || over}}" style="padding-bottom:{{safeBottom}}px">
     <view class="pad">
       <view class="pad-row">
-        <view class="dbtn" data-dir="up" bindtap="onDir" bindlongpress="onDirLongStart" bindtouchend="onDirLongEnd" bindtouchcancel="onDirLongEnd" hover-class="dbtn-hover">
+        <view class="dbtn" data-dir="up" bindtap="onDir" hover-class="dbtn-hover">
           <view class="arw up"></view>
         </view>
       </view>
       <view class="pad-row">
-        <view class="dbtn" data-dir="left" bindtap="onDir" bindlongpress="onDirLongStart" bindtouchend="onDirLongEnd" bindtouchcancel="onDirLongEnd" hover-class="dbtn-hover">
+        <view class="dbtn" data-dir="left" bindtap="onDir" hover-class="dbtn-hover">
           <view class="arw left"></view>
         </view>
         <view class="dbtn center" bindtap="onOpenSettings" hover-class="dbtn-hover">
           <text class="center-text">设置</text>
         </view>
-        <view class="dbtn" data-dir="right" bindtap="onDir" bindlongpress="onDirLongStart" bindtouchend="onDirLongEnd" bindtouchcancel="onDirLongEnd" hover-class="dbtn-hover">
+        <view class="dbtn" data-dir="right" bindtap="onDir" hover-class="dbtn-hover">
           <view class="arw right"></view>
         </view>
       </view>
       <view class="pad-row">
-        <view class="dbtn" data-dir="down" bindtap="onDir" bindlongpress="onDirLongStart" bindtouchend="onDirLongEnd" bindtouchcancel="onDirLongEnd" hover-class="dbtn-hover">
+        <view class="dbtn" data-dir="down" bindtap="onDir" hover-class="dbtn-hover">
           <view class="arw down"></view>
         </view>
       </view>

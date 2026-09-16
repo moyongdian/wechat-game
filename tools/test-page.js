@@ -55,20 +55,19 @@ function loadPage(rel) {
 }
 
 /* ---------- 游戏页 ---------- */
-section('游戏页：长按加速（保留）与按键即时响应')
+section('游戏页：方向键即时响应（长按加速已按要求删除）')
 {
   const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxml'), 'utf8')
-  check('长按加速逻辑存在', src.includes('startBoostLoop') && src.includes('boostDir'))
-  check('WXML 绑定长按事件', wxml.includes('bindlongpress="onDirLongStart"') &&
-    wxml.includes('bindtouchend="onDirLongEnd"'))
-  check('长按顺序：先 stopLoop 再设置 boostDir', (() => {
-    const b = src.slice(src.indexOf('onDirLongStart(e) {'), src.indexOf('onDirLongEnd()'))
-    const iStop = b.indexOf('this.stopLoop()'), iDir = b.indexOf('this.boostDir = dir')
-    return iStop !== -1 && iDir !== -1 && iStop < iDir
-  })())
+  check('已移除长按加速逻辑',
+    !src.includes('boostDir') && !src.includes('boostTimer') && !src.includes('startBoostLoop'))
+  check('WXML 已移除长按绑定',
+    !wxml.includes('onDirLongStart') && !wxml.includes('bindlongpress'))
+  check('方向键仍为点按绑定 onDir', wxml.includes('bindtap="onDir"'))
+  check('消息区滑动控制仍保留', wxml.includes('bindtouchstart="onTouchStart"'))
   // 修复按键延迟：转向后重置插值基准并立即重绘
-  const onDir = src.slice(src.indexOf('onDir(e) {'), src.indexOf('onDirLongStart'))
+  const mDir = src.match(/\n  onDir\(e\) \{[\s\S]*?\n  \},/)
+  const onDir = mDir ? mDir[0] : ''
   check('转向后重置插值基准（修复视觉滞后）', onDir.includes('this.prevSnake = this.game.snake.map'))
   check('转向后立即重绘', onDir.includes('this.draw()'))
 }
