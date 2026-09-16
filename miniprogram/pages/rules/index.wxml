@@ -1,0 +1,59 @@
+<!-- 游戏规则（设置 → 游戏规则） -->
+<view class="page">
+
+  <view class="navbar" style="padding-top:{{statusBarHeight}}px">
+    <view class="navbar-inner" style="height:{{navHeight}}px">
+      <view class="nav-back" bindtap="onBack" hover-class="nav-hover">
+        <view class="ico-back"></view>
+      </view>
+      <view class="nav-title">游戏规则</view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+  <view style="height:{{statusBarHeight + navHeight}}px"></view>
+
+  <!-- 各模式规则 -->
+  <view class="group">
+    <view class="group-head">游戏模式</view>
+    <view class="mode {{activeMode === item.key ? 'on' : ''}}"
+          wx:for="{{rules}}" wx:key="key" data-key="{{item.key}}" bindtap="onTapMode">
+      <view class="mode-top">
+        <text class="mode-name">{{item.name}}</text>
+        <text class="mode-scene">{{item.scene}}</text>
+      </view>
+      <view class="mode-line" wx:for="{{item.lines}}" wx:for-item="line" wx:key="*this">
+        <text class="dot">·</text>
+        <text class="mode-text">{{line}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 道具 -->
+  <view class="group">
+    <view class="group-head">特殊豆 / 道具</view>
+    <view class="row" wx:for="{{items}}" wx:key="name">
+      <text class="label">{{item.name}}</text>
+      <text class="value">{{item.effect}}</text>
+    </view>
+  </view>
+
+  <!-- 障碍物 -->
+  <view class="group">
+    <view class="group-head">障碍物（障碍 / 无尽模式）</view>
+    <view class="row" wx:for="{{obstacles}}" wx:key="name">
+      <text class="label">{{item.name}}</text>
+      <text class="value">{{item.effect}}</text>
+    </view>
+  </view>
+
+  <!-- 计分与难度 -->
+  <view class="group">
+    <view class="group-head">计分与难度</view>
+    <view class="mode-line" wx:for="{{scoring}}" wx:key="*this">
+      <text class="dot">·</text>
+      <text class="mode-text">{{item}}</text>
+    </view>
+  </view>
+
+  <view class="footer">数据仅保存在本机 · 不收集个人信息</view>
+</view>

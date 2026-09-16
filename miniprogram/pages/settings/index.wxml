@@ -120,6 +120,11 @@
 
   <!-- 其他 -->
   <view class="group">
+    <view class="row" bindtap="onRules">
+      <text class="label">游戏规则</text>
+      <text class="value">各模式玩法说明</text>
+      <view class="arrow"></view>
+    </view>
     <view class="row" bindtap="onAbout">
       <text class="label">关于</text>
       <text class="value">v{{version}}</text>

@@ -127,6 +127,11 @@ Page({
     })
   },
 
+  /** 查看游戏规则（可带上当前模式，便于高亮） */
+  onRules() {
+    wx.navigateTo({ url: '/pages/rules/index?mode=' + (this.data.s.mode || '') })
+  },
+
   onAbout() {
     wx.showModal({
       title: '关于',

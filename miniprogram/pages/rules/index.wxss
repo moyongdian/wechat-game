@@ -1,0 +1,71 @@
+/* 游戏规则页：沿用设置页的聊天信息风格 */
+page {
+  background: #EDEDED;
+  --line: #E5E5E5;
+  --text: #191919;
+  --text-2: #888888;
+  --green: #07C160;
+}
+
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: #F7F7F7;
+  border-bottom: 1rpx solid var(--line);
+}
+.navbar-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 20rpx; }
+.nav-back { width: 120rpx; height: 72rpx; display: flex; align-items: center; }
+.ico-back {
+  width: 22rpx; height: 22rpx;
+  border-left: 4rpx solid #191919;
+  border-bottom: 4rpx solid #191919;
+  transform: rotate(45deg);
+  border-radius: 2rpx;
+}
+.nav-title { font-size: 32rpx; font-weight: 600; color: var(--text); }
+.nav-right { width: 120rpx; }
+.nav-hover { opacity: .5; }
+
+.group {
+  background: #FFFFFF;
+  margin-top: 20rpx;
+  padding: 0 24rpx;
+}
+.group-head {
+  font-size: 24rpx;
+  color: var(--text-2);
+  padding: 20rpx 0 8rpx;
+}
+
+/* 模式卡片 */
+.mode {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.mode:last-child { border-bottom: none; }
+.mode.on { background: rgba(7, 193, 96, 0.06); }
+.mode-top { display: flex; align-items: center; justify-content: space-between; }
+.mode-name { font-size: 30rpx; font-weight: 600; color: var(--text); }
+.mode-scene { font-size: 22rpx; color: var(--green); }
+.mode-line { display: flex; align-items: flex-start; margin-top: 8rpx; }
+.dot { color: var(--text-2); margin-right: 10rpx; font-size: 26rpx; line-height: 1.5; }
+.mode-text { flex: 1; font-size: 26rpx; color: #4A4A4A; line-height: 1.5; }
+
+/* 通用行 */
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.row:last-child { border-bottom: none; }
+.label { font-size: 28rpx; color: var(--text); flex-shrink: 0; width: 180rpx; }
+.value { flex: 1; text-align: right; font-size: 26rpx; color: var(--text-2); line-height: 1.5; }
+
+.footer {
+  text-align: center;
+  font-size: 22rpx;
+  color: #B2B2B2;
+  padding: 40rpx 0 60rpx;
+}

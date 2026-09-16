@@ -178,6 +178,35 @@ section('游戏页：平滑移动与音效')
   check('音效受设置开关控制', /playSfx\(kind\) \{[\s\S]*?if \(!s\.sound\) return/.test(src))
 }
 
+section('游戏规则页（设置 → 游戏规则）')
+{
+  const app = JSON.parse(fs.readFileSync(path.join(MP, 'app.json'), 'utf8'))
+  const wxml = fs.readFileSync(path.join(MP, 'pages/settings/index.wxml'), 'utf8')
+  const setJs = fs.readFileSync(path.join(MP, 'pages/settings/index.js'), 'utf8')
+  const rules = loadPage('pages/rules/index.js')
+  const eng = require(path.join(MP, 'utils/snake-engine.js'))
+
+  check('规则页已在 app.json 注册', app.pages.includes('pages/rules/index'))
+  check('设置页有「游戏规则」入口', wxml.includes('游戏规则') && wxml.includes('bindtap="onRules"'))
+  check('入口跳转到规则页', /onRules\(\) \{[\s\S]*?\/pages\/rules\/index/.test(setJs))
+
+  // 规则页必须覆盖引擎中的每一种模式（避免新增模式后漏写规则）
+  const documented = (rules.data.rules || []).map((r) => r.key)
+  const allModes = Object.values(eng.MODES)
+  const missing = allModes.filter((m) => !documented.includes(m))
+  check('规则页覆盖全部游戏模式', missing.length === 0,
+    `模式 ${allModes.length} 个，已写明 ${documented.length} 个${missing.length ? '，缺: ' + missing.join('/') : ''}`)
+  check('每个模式都有规则条目',
+    (rules.data.rules || []).every((r) => r.lines && r.lines.length >= 2),
+    (rules.data.rules || []).map((r) => r.name + ':' + r.lines.length).join(' '))
+  check('规则页含道具说明（≥5 种）', (rules.data.items || []).length >= 5,
+    String((rules.data.items || []).length))
+  check('规则页含障碍说明（≥3 种）', (rules.data.obstacles || []).length >= 3,
+    String((rules.data.obstacles || []).length))
+  check('规则页含计分与难度说明', (rules.data.scoring || []).length >= 3,
+    String((rules.data.scoring || []).length))
+}
+
 section('结果')
 console.log(`  通过: ${pass}\n  失败: ${fail}`)
 if (failures.length) { console.log('\n  失败明细：'); failures.forEach((f) => console.log('    ✗ ' + f)) }

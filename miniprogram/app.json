@@ -2,7 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/game/snake/index",
-    "pages/settings/index"
+    "pages/settings/index",
+    "pages/rules/index"
   ],
   "window": {
     "backgroundColor": "#EDEDED",
