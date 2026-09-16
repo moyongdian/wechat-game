@@ -44,6 +44,7 @@ Page({
   /* ================= 生命周期 ================= */
   onLoad() {
     const app = getApp()
+    this.initAudio()
     const s = settings.get()
     const modeLabel = { classic: '经典', wrap: '穿墙', timed: '限时' }[s.mode] || '经典'
 
@@ -89,7 +90,12 @@ Page({
   },
 
   onHide() { this.pauseGame('hide') },   // 切后台自动暂停（说明书 §8.2）
-  onUnload() { this.stopLoop(); this.stopChatTimer() },
+  onUnload() {
+    this.stopLoop()
+    this.stopChatTimer()
+    try { this.audioEat && this.audioEat.destroy() } catch (e) {}
+    try { this.audioSpecial && this.audioSpecial.destroy() } catch (e) {}
+  },
 
   /* ================= Canvas 初始化 ================= */
   initCanvas() {
@@ -166,15 +172,58 @@ Page({
     }, 1000)
   },
 
+  /** 初始化音效（本地 wav，无需网络） */
+  initAudio() {
+    try {
+      this.audioEat = wx.createInnerAudioContext()
+      this.audioEat.src = '/audio/eat.wav'
+      this.audioSpecial = wx.createInnerAudioContext()
+      this.audioSpecial.src = '/audio/special.wav'
+    } catch (e) { this.audioEat = this.audioSpecial = null }
+  },
+
+  /** 播放音效（受设置中的「音效」开关控制） */
+  playSfx(kind) {
+    const s = settings.get()
+    if (!s.sound) return
+    const ctx = kind === 'special' ? this.audioSpecial : this.audioEat
+    if (!ctx) return
+    try { ctx.stop(); ctx.play() } catch (e) {}
+  },
+
+  /** 启动渲染循环：每帧按 tick 进度插值重绘 → 视觉上连续移动 */
+  startRenderLoop() {
+    this.stopRenderLoop()
+    const raf = this.canvas && this.canvas.requestAnimationFrame
+      ? (cb) => this.canvas.requestAnimationFrame(cb)
+      : (cb) => setTimeout(cb, 16)
+    const frame = () => {
+      this.draw()
+      this.renderRaf = raf(frame)
+    }
+    this.renderRaf = raf(frame)
+  },
+
+  stopRenderLoop() {
+    if (!this.renderRaf) return
+    const cancel = this.canvas && this.canvas.cancelAnimationFrame
+    if (cancel) { try { cancel(this.renderRaf) } catch (e) {} }
+    this.renderRaf = null
+  },
+
   stopLoop() {
     if (this.timer) { clearTimeout(this.timer); this.timer = null }
     if (this.secondTimer) { clearInterval(this.secondTimer); this.secondTimer = null }
     if (this.boostTimer) { clearTimeout(this.boostTimer); this.boostTimer = null }
     this.boostDir = null
+    this.stopRenderLoop()
   },
 
   stepOnce() {
     const g = this.game
+    // 记录本帧起始状态，供渲染插值使用（平滑移动的关键）
+    this.prevSnake = g.snake.map((s2) => ({ x: s2.x, y: s2.y }))
+    this.lastTickAt = Date.now()
     const r = g.tick()
     if (r.dead) { this.onGameOver(); return }
 
@@ -186,9 +235,10 @@ Page({
     if (r.gained) {
       const s = settings.get()
       util.vibrate(s.vibrate)
+      this.playSfx(r.special ? 'special' : 'eat')
       if (r.special) {
         const label = { gold: '金豆 +5', double: '双倍得分 20s', pace: '减速 8s',
-                        packet: '红包 +' + r.gained }[r.special]
+                        magnet: '磁铁 15s', packet: '红包 +' + r.gained }[r.special]
         this.showToast(label)
       }
       this.setData({ score: g.score, multiplier: g.multiplier(), effectText: this.effectText() })
@@ -258,26 +308,36 @@ Page({
     // 豆子：各类特殊豆在形状/大小/颜色上区分（见 drawFood）
     this.drawFood(ctx, g.food, ox, oy, cell)
 
-    // 蛇：用「粗圆头线段」连接各节中心 → 无缝隙
-    // 穿墙时相邻两节会跨过边界（坐标跳变 1 格以上），必须断开绘制，
-    // 否则会出现一条横穿整个画面的长线
+    // 蛇：粗圆头线段连接各节中心 → 无缝隙
+    // 平滑移动：在上一 tick 位置与当前位置之间按进度插值，
+    // 使 100~280ms 的网格跳变看起来是连续滑动而非一格一格跳。
     const n = g.snake.length
     const inv = (g.invincible || 0) > 0
     const pulse = inv ? 1 + 0.04 * Math.sin(Date.now() / 130) : 1
-    const pt = (i) => ({
-      x: ox + g.snake[i].x * cell + cell / 2,
-      y: oy + g.snake[i].y * cell + cell / 2
-    })
-    // 判断相邻两节是否连续（未跨边界）
-    const linked = (i) => {
-      const a = g.snake[i], b = g.snake[i + 1]
-      return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1
+    const interval = g.interval()
+    const t = (this.lastTickAt && this.prevSnake ? (Date.now() - this.lastTickAt) / interval : 1)
+    const p = Math.max(0, Math.min(1, t))      // 插值进度 0~1
+
+    const prev = this.prevSnake || []
+    // 各节渲染坐标：从「上一位置」滑动到「当前位置」
+    // 每节从「上一 tick 的自身位置」滑动到「当前自身位置」：
+    // 对第 i 节而言，当前自身位置 = 上一 tick 第 i-1 节的位置，
+    // 因此起点应为 prev[i]，而不是 prev[i+1]（否则蛇头起点会错一格）
+    const pos = (i) => {
+      const cur = g.snake[i]
+      const from = prev[i] || cur
+      // 跨边界（穿墙）或间距过大时不插值，避免出现长线
+      if (Math.abs(from.x - cur.x) > 1 || Math.abs(from.y - cur.y) > 1) {
+        return { x: ox + cur.x * cell + cell / 2, y: oy + cur.y * cell + cell / 2 }
+      }
+      const fx = from.x + (cur.x - from.x) * p
+      const fy = from.y + (cur.y - from.y) * p
+      return { x: ox + fx * cell + cell / 2, y: oy + fy * cell + cell / 2 }
     }
 
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
 
-    // 先描深色边，再叠主色 → 形成细描边观感
     const strokes = [
       { w: cell * 0.94, color: inv ? 'rgba(34, 211, 238, 0.55)' : '#05A050' },
       { w: cell * 0.78, color: inv ? '#22D3EE' : '#07C160' }
@@ -287,25 +347,27 @@ Page({
       ctx.strokeStyle = st.color
       ctx.beginPath()
       for (let i = 0; i < n - 1; i++) {
-        if (!linked(i)) continue          // 跨边界：断开，避免长线
-        const a = pt(i), b = pt(i + 1)
+        // 相邻节是否连续（未跨边界），跨边界则断开
+        const a0 = g.snake[i], b0 = g.snake[i + 1]
+        if (Math.abs(a0.x - b0.x) > 1 || Math.abs(a0.y - b0.y) > 1) continue
+        const a = pos(i), b = pos(i + 1)
         ctx.moveTo(a.x, a.y)
         ctx.lineTo(b.x, b.y)
       }
       ctx.stroke()
     }
 
-    // 各节圆点：保证断开处与单节时仍可见（也是连接段的补充）
+    // 各节圆点（保证断开处与单节时可见）
     ctx.fillStyle = inv ? '#22D3EE' : '#07C160'
     for (let i = 1; i < n; i++) {
-      const a = pt(i)
+      const a = pos(i)
       ctx.beginPath()
       ctx.arc(a.x, a.y, cell * 0.39 * pulse, 0, Math.PI * 2)
       ctx.fill()
     }
 
-    // 蛇头：略深、稍大
-    const head = pt(0)
+    // 蛇头
+    const head = pos(0)
     ctx.beginPath()
     ctx.arc(head.x, head.y, cell * 0.44 * pulse, 0, Math.PI * 2)
     ctx.fillStyle = inv ? '#22D3EE' : '#06AD56'
@@ -380,6 +442,42 @@ Page({
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText('×2', cx, cy + 1)
+      return
+    }
+
+    // ── 磁铁豆：黑底 + 白色 U 形磁铁图标 ──
+    if (type === 'magnet') {
+      const r = base * 1.25
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fillStyle = '#111111'
+      ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.11)
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.stroke()
+
+      // U 形磁铁（白色两条竖臂 + 底部弧）
+      const aw = r * 0.95           // 整体宽
+      const ah = r * 1.0            // 整体高
+      const arm = Math.max(2, cell * 0.13)
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.lineWidth = arm
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      ctx.moveTo(cx - aw / 2, cy - ah / 2)          // 左臂上端
+      ctx.lineTo(cx - aw / 2, cy + ah * 0.08)
+      ctx.arc(cx, cy + ah * 0.08, aw / 2, Math.PI, 0, true)   // 底部半圆
+      ctx.lineTo(cx + aw / 2, cy - ah / 2)          // 右臂上端
+      ctx.stroke()
+      // 两个磁极（红色小段）
+      ctx.strokeStyle = '#FA5151'
+      ctx.lineWidth = arm * 1.15
+      ctx.beginPath()
+      ctx.moveTo(cx - aw / 2, cy - ah / 2)
+      ctx.lineTo(cx - aw / 2, cy - ah * 0.2)
+      ctx.moveTo(cx + aw / 2, cy - ah / 2)
+      ctx.lineTo(cx + aw / 2, cy - ah * 0.2)
+      ctx.stroke()
       return
     }
 
@@ -488,6 +586,7 @@ Page({
       this.stopChatTimer()
       this.startChatTimer()
       this.startLoop()
+      this.startRenderLoop()
     }
   },
 

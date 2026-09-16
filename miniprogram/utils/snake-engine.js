@@ -23,7 +23,8 @@ const SPECIALS = {
   slow:    { label: '减速豆', points: 3,  color: '#1989FA', duration: 8 },
   gold:    { label: '金豆',   points: 5,  color: '#FFD700', duration: 0 },
   double:  { label: '双倍豆', points: 1,  color: '#FFFFFF', duration: 20 },
-  packet:  { label: '红包',   points: 0,  color: '#FA5151', duration: 0 } // 分数随机 10-50
+  packet:  { label: '红包',   points: 0,  color: '#FA5151', duration: 0 }, // 分数随机 10-50
+  magnet:  { label: '磁铁豆', points: 3,  color: '#111111', duration: 15 } // 吸附附近豆子 15 秒
 }
 
 const SPECIAL_KEYS = Object.keys(SPECIALS)
@@ -93,6 +94,7 @@ class SnakeGame {
     this.packetPopup = 0       // 红包弹窗分数（>0 时前端展示）
     this.remainSeconds = this.mode === MODES.TIMED ? this.timedSeconds : 0
     this.food = null
+    this.magnetFood = null
     this.spawnFood()
     return this
   }
@@ -163,6 +165,37 @@ class SnakeGame {
     return { blocked: false }
   }
 
+  /**
+   * 磁铁效果：吸附半径内的豆子每 tick 向蛇头靠近一格
+   * 被吸附的豆子放入 magnetFood，可被正常吃掉
+   */
+  applyMagnet() {
+    if (!this.hasEffect('magnet')) {
+      // 效果结束后，把未吃掉的吸附豆放回普通位置
+      if (this.magnetFood) { this.food = this.magnetFood; this.magnetFood = null }
+      return
+    }
+    const head = this.snake[0]
+    const R = 6                                   // 吸附半径（格）
+    const candidates = [this.food, this.magnetFood].filter(Boolean)
+    for (const f of candidates) {
+      const d = Math.abs(f.x - head.x) + Math.abs(f.y - head.y)
+      if (d > R || d === 0) continue
+      // 朝蛇头方向移动一格（优先走差距较大的轴）
+      const dx = head.x - f.x, dy = head.y - f.y
+      if (Math.abs(dx) >= Math.abs(dy)) f.x += Math.sign(dx)
+      else f.y += Math.sign(dy)
+    }
+    // 若常规豆已靠近蛇头，标记为吸附豆（便于绘制与判定）
+    if (this.food) {
+      const d = Math.abs(this.food.x - head.x) + Math.abs(this.food.y - head.y)
+      if (d <= R && !this.magnetFood) {
+        this.magnetFood = this.food
+        this.food = null
+      }
+    }
+  }
+
   /* ---------------- 生成豆子 ---------------- */
   isOnSnake(x, y) {
     return this.snake.some((s) => s.x === x && s.y === y)
@@ -194,6 +227,9 @@ class SnakeGame {
   /* ---------------- 单步推进 ---------------- */
   tick() {
     if (this.state !== 'running' || !this.alive) return { moved: false }
+
+    // 磁铁效果：把附近的豆子逐步吸向蛇头
+    this.applyMagnet()
 
     // 应用待处理转向
     if (this.pendingDir) {
@@ -230,7 +266,7 @@ class SnakeGame {
 
     // 撞自己（蛇尾即将移动，因此允许移动到当前尾部位置）
     const eating = (f) => f && nx === f.x && ny === f.y
-    const willEat = eating(this.food)
+    const willEat = eating(this.food) || eating(this.magnetFood)
     const body = willEat ? this.snake : this.snake.slice(0, -1)
     const hitSelf = body.some((s) => s.x === nx && s.y === ny)
     if (hitSelf) {
@@ -252,7 +288,8 @@ class SnakeGame {
     let special = null
 
     if (willEat) {
-      const res = this.consume(this.food)
+      const target = eating(this.food) ? this.food : this.magnetFood
+      const res = this.consume(target)
       gained = res.gained
       special = res.special
     } else {
@@ -282,6 +319,7 @@ class SnakeGame {
       // 效果类
       if (type === 'double') this.effects.double = (this.effects.double || 0) + SPECIALS.double.duration
       if (type === 'slow')   this.effects.slow   = (this.effects.slow   || 0) + SPECIALS.slow.duration
+      if (type === 'magnet') this.effects.magnet = SPECIALS.magnet.duration   // 固定 15 秒，不叠加
     }
 
     // 双倍豆：吃豆得分翻倍
@@ -368,7 +406,7 @@ class SnakeGame {
       snake: this.snake, food: this.food,
       score: this.score, state: this.state, alive: this.alive,
       stage: this.stage(), multiplier: this.multiplier(),
-      invincible: this.invincible, effects: this.effects,
+      invincible: this.invincible, effects: this.effects, magnetFood: this.magnetFood,
       remainSeconds: this.remainSeconds,
       overReason: this.overReason,
       packetPopup: this.packetPopup

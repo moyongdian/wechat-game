@@ -1,5 +1,8 @@
 <!-- 游戏页：聊天贪吃蛇（伪装成聊天窗口） -->
 <view class="page">
+  <!-- 吃豆音效（本地音频，无需网络） -->
+  <audio id="sfxEat" src="/audio/eat.wav" />
+  <audio id="sfxSpecial" src="/audio/special.wav" />
 
   <!-- 顶部：左上分数 / 中间聊天对象名称 / 右上设置 -->
   <view class="navbar" style="padding-top:{{statusBarHeight}}px">

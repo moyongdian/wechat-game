@@ -137,7 +137,7 @@ check('缩小豆已删除', !SPECIALS.shrink, Object.keys(SPECIALS).join('/'))
 section('需求变更验证')
 check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
 check('减速豆已回归特殊豆', !!SPECIALS.slow, JSON.stringify(SPECIALS.slow))
-check('特殊豆共 4 种（已删加速/缩小/护盾豆）', Object.keys(SPECIALS).length === 4, Object.keys(SPECIALS).join('/'))
+check('特殊豆共 5 种（含磁铁豆）', Object.keys(SPECIALS).length === 5, Object.keys(SPECIALS).join('/'))
 check('特殊豆概率区间为 40%~50%', SPECIAL_RATE_MIN === 0.40 && SPECIAL_RATE_MAX === 0.50,
   `${SPECIAL_RATE_MIN}~${SPECIAL_RATE_MAX}`)
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
@@ -157,6 +157,32 @@ section('回归：穿墙时相邻节跨边界需可识别（曾画出长线）')
   g3.dir = { x: 1, y: 0 }; g3.dirName = 'right'
   g3.tick()
   check('穿墙后蛇头环绕到另一侧', g3.snake[0].x === 0, `headX=${g3.snake[0].x}`)
+}
+
+section('磁铁豆')
+{
+  const mg = new SnakeGame({ specialFood: false })
+  mg.start()
+  check('磁铁豆时长为 15 秒', SPECIALS.magnet && SPECIALS.magnet.duration === 15,
+    SPECIALS.magnet ? String(SPECIALS.magnet.duration) : 'null')
+  // 吃磁铁豆
+  mg.food = { x: mg.snake[0].x + 1, y: mg.snake[0].y, type: 'magnet' }
+  mg.tick()
+  check('吃磁铁豆获得吸附效果', mg.hasEffect('magnet') && mg.effects.magnet === 15,
+    JSON.stringify(mg.effects))
+  // 吸附：附近豆子逐格靠近蛇头
+  mg.snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }]
+  mg.food = { x: 14, y: 10, type: 'normal' }
+  mg.magnetFood = null
+  const before = 14
+  for (let i = 0; i < 3; i++) mg.applyMagnet()
+  const drop = mg.food || mg.magnetFood
+  check('附近豆子被吸向蛇头', drop && drop.x < before, `${before} → ${drop ? drop.x : 'null'}`)
+  // 效果结束后吸附豆回到常规位置
+  mg.effects.magnet = 0
+  mg.applyMagnet()
+  check('效果结束后吸附豆回归常规位置', !!mg.food && !mg.magnetFood,
+    `food=${!!mg.food} magnetFood=${!!mg.magnetFood}`)
 }
 
 section('特殊豆概率实测')

@@ -166,7 +166,9 @@ page {
 .msg.right .msg-avatar { right: 16rpx; }
 
 .msg-bubble {
-  max-width: 100%;
+  display: inline-block;     /* 仅包裹文字宽度，不撑满整行 */
+  max-width: 100%;           /* 超长时换行，最多占满可用宽度 */
+  width: fit-content;
   padding: 16rpx 22rpx;
   border-radius: 16rpx;
   background: rgba(255,255,255,0.92);
