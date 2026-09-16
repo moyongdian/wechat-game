@@ -293,31 +293,87 @@ Page({
   },
 
   /** 画一颗豆子（黑色本体 + 白描边 + 类型色外圈） */
+  /**
+   * 画豆子：各类特殊豆在「形状 / 大小 / 颜色」上明显区分
+   *  - 普通豆：黑色小圆
+   *  - 金豆：金色圆（大）+ 深金描边
+   *  - 双倍豆：白色方块 + 「×2」
+   *  - 减速豆：蓝色圆（中）
+   *  - 护盾豆：白色盾牌形（上宽下尖）+ 蓝边
+   *  - 缩小豆：白色小圆（最小）
+   *  - 红包：红色圆角矩形（最大）+ 金边与金色封口
+   */
   drawFood(ctx, food, ox, oy, cell) {
     if (!food) return
-    const fx = ox + food.x * cell + cell / 2
-    const fy = oy + food.y * cell + cell / 2
-    const r = cell * 0.28
+    const cx = ox + food.x * cell + cell / 2
+    const cy = oy + food.y * cell + cell / 2
+    const base = cell * 0.26
+    const type = food.type || 'normal'
+
+    // ── 红包：最大 ──
+    if (type === 'packet') {
+      const w = cell * 0.88, h = cell * 1.04
+      ctx.fillStyle = '#FA5151'
+      ctx.strokeStyle = '#FFD700'
+      ctx.lineWidth = Math.max(1.5, cell * 0.07)
+      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.16)
+      ctx.fill(); ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(cx, cy - h * 0.14, w * 0.2, 0, Math.PI * 2)
+      ctx.fillStyle = '#FFD700'
+      ctx.fill()
+      return
+    }
+
+    // ── 护盾豆：盾牌形 ──
+    if (type === 'shield') {
+      const w = cell * 0.64, h = cell * 0.76
+      ctx.beginPath()
+      ctx.moveTo(cx - w / 2, cy - h / 2)
+      ctx.lineTo(cx + w / 2, cy - h / 2)
+      ctx.lineTo(cx + w / 2, cy + h * 0.08)
+      ctx.lineTo(cx, cy + h / 2)
+      ctx.lineTo(cx - w / 2, cy + h * 0.08)
+      ctx.closePath()
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fill()
+      ctx.lineWidth = Math.max(1.5, cell * 0.09)
+      ctx.strokeStyle = '#4C8DF6'
+      ctx.stroke()
+      return
+    }
+
+    // ── 双倍豆：方块 + ×2 ──
+    if (type === 'double') {
+      const d = cell * 0.56
+      ctx.fillStyle = '#FFFFFF'
+      ctx.strokeStyle = '#F59E0B'
+      ctx.lineWidth = Math.max(1.5, cell * 0.08)
+      this.roundRect(ctx, cx - d / 2, cy - d / 2, d, d, cell * 0.1)
+      ctx.fill(); ctx.stroke()
+      ctx.fillStyle = '#F59E0B'
+      ctx.font = 'bold ' + Math.max(8, Math.round(cell * 0.4)) + 'px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('×2', cx, cy + 1)
+      return
+    }
+
+    // ── 圆形类：金豆 / 减速豆 / 缩小豆 / 普通豆（大小与颜色不同）──
+    const spec = {
+      gold:   { r: base * 1.5,  fill: '#FFD700', ring: '#B8860B' },
+      slow:   { r: base * 1.25, fill: '#1989FA', ring: '#FFFFFF' },
+      shrink: { r: base * 0.85, fill: '#FFFFFF', ring: '#7A7E83' },
+      normal: { r: base,        fill: '#000000', ring: '#FFFFFF' }
+    }[type] || { r: base, fill: '#000000', ring: '#FFFFFF' }
 
     ctx.beginPath()
-    ctx.arc(fx, fy, r, 0, Math.PI * 2)
-    ctx.fillStyle = '#000000'
+    ctx.arc(cx, cy, spec.r, 0, Math.PI * 2)
+    ctx.fillStyle = spec.fill
     ctx.fill()
-    ctx.lineWidth = Math.max(1, cell * 0.07)
-    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth = Math.max(1.5, cell * 0.09)
+    ctx.strokeStyle = spec.ring
     ctx.stroke()
-
-    const mark = {
-      gold: '#FFD700', double: '#FFFFFF', shield: '#FFFFFF',
-      shrink: '#FFFFFF', packet: '#FA5151', pace: '#1989FA'
-    }[food.type]
-    if (mark) {
-      ctx.beginPath()
-      ctx.arc(fx, fy, r * 1.7, 0, Math.PI * 2)
-      ctx.lineWidth = Math.max(1.5, cell * 0.09)
-      ctx.strokeStyle = mark
-      ctx.stroke()
-    }
   },
 
   roundRect(ctx, x, y, w, h, r) {
