@@ -2,7 +2,7 @@
  * 贪吃蛇内核单元测试（对照《小游戏功能说明书》逐条验证）
  * 运行：node tools/test-engine.js
  */
-const { SnakeGame, MODES, SPECIALS, SPECIAL_RATE_MID, INVINCIBLE_SECONDS } = require('../miniprogram/utils/snake-engine')
+const { SnakeGame, MODES, SPECIALS, SPECIAL_RATE_MIN, SPECIAL_RATE_MAX } = require('../miniprogram/utils/snake-engine')
 
 let pass = 0, fail = 0
 const failures = []
@@ -129,25 +129,7 @@ check('减速豆 +3 分', g.score === 3, `score=${g.score}`)
 check('减速豆进入 8 秒效果', g.hasEffect('slow') && g.effects.slow === 8, JSON.stringify(g.effects))
 check('减速后移动间隔变长', g.interval() > slowIv, `${slowIv} → ${g.interval()}`)
 
-g = makeGame(); g.start()
-g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'shield' }
-g.tick()
-check('护盾豆 +1 次护盾', g.shield === 1, `shield=${g.shield}`)
-// 护盾免疫撞墙
-g.snake = [{ x: 19, y: 5 }, { x: 18, y: 5 }, { x: 17, y: 5 }]
-g.dir = { x: 1, y: 0 }; g.dirName = 'right'; g.effects = {}
-g.tick()
-check('护盾免疫一次撞墙且不死亡', g.state === 'running' && g.shield === 0,
-  `state=${g.state} shield=${g.shield}`)
-check('护盾抵挡后进入 3 秒无敌', g.invincible === INVINCIBLE_SECONDS, `invincible=${g.invincible}`)
-// 无敌期间再次撞墙仍不死亡
-g.snake = [{ x: g.cellsX - 1, y: 5 }, { x: g.cellsX - 2, y: 5 }, { x: g.cellsX - 3, y: 5 }]
-g.dir = { x: 1, y: 0 }; g.dirName = 'right'
-g.tick()
-check('无敌期间撞墙不死亡', g.state === 'running', `state=${g.state}`)
-// 无敌时间递减后失效
-for (let i = 0; i < INVINCIBLE_SECONDS; i++) g.tickSecond()
-check('无敌时间结束后归零', g.invincible === 0, `invincible=${g.invincible}`)
+check('护盾豆已删除', !SPECIALS.shield, Object.keys(SPECIALS).join('/'))
 
 check('缩小豆已删除', !SPECIALS.shrink, Object.keys(SPECIALS).join('/'))
 
@@ -155,29 +137,11 @@ check('缩小豆已删除', !SPECIALS.shrink, Object.keys(SPECIALS).join('/'))
 section('需求变更验证')
 check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
 check('减速豆已回归特殊豆', !!SPECIALS.slow, JSON.stringify(SPECIALS.slow))
-check('特殊豆共 5 种（已删加速豆与缩小豆）', Object.keys(SPECIALS).length === 5, Object.keys(SPECIALS).join('/'))
-check('特殊豆概率提高 10%（0.25 → 0.275）', Math.abs(SPECIAL_RATE_MID - 0.275) < 1e-9, String(SPECIAL_RATE_MID))
-check('护盾无敌时长为 3 秒', INVINCIBLE_SECONDS === 3, String(INVINCIBLE_SECONDS))
+check('特殊豆共 4 种（已删加速/缩小/护盾豆）', Object.keys(SPECIALS).length === 4, Object.keys(SPECIALS).join('/'))
+check('特殊豆概率区间为 40%~50%', SPECIAL_RATE_MIN === 0.40 && SPECIAL_RATE_MAX === 0.50,
+  `${SPECIAL_RATE_MIN}~${SPECIAL_RATE_MAX}`)
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
 check('慢速已降低（间隔 ≥ 280ms）', slowG.interval() >= 280, slowG.interval() + 'ms')
-
-section('回归：护盾无敌后仍可移动（曾卡死）')
-{
-  const g2 = new SnakeGame({ cols: 20, rows: 22, specialFood: false })
-  g2.start()
-  g2.shield = 1
-  // 贴右墙向右 → 撞墙被护盾抵挡
-  g2.snake = [{ x: 19, y: 5 }, { x: 18, y: 5 }, { x: 17, y: 5 }]
-  g2.dir = { x: 1, y: 0 }; g2.dirName = 'right'
-  const r0 = g2.tick()
-  check('撞墙被护盾抵挡且进入无敌', r0.shielded === 'shield' && g2.invincible === INVINCIBLE_SECONDS,
-    `shielded=${r0.shielded} inv=${g2.invincible}`)
-  check('被抵挡后自动重新定向（不再朝墙）', g2.dirName !== 'right', `dir=${g2.dirName}`)
-  let moved = 0
-  for (let i = 0; i < 8; i++) if (g2.tick().moved) moved++
-  check('★回归：无敌期间蛇可持续移动', moved >= 6, `8 次 tick 移动 ${moved} 次`)
-  check('★回归：无敌期间不会死亡', g2.state === 'running', `state=${g2.state}`)
-}
 
 section('回归：穿墙时相邻节跨边界需可识别（曾画出长线）')
 {
@@ -193,6 +157,16 @@ section('回归：穿墙时相邻节跨边界需可识别（曾画出长线）')
   g3.dir = { x: 1, y: 0 }; g3.dirName = 'right'
   g3.tick()
   check('穿墙后蛇头环绕到另一侧', g3.snake[0].x === 0, `headX=${g3.snake[0].x}`)
+}
+
+section('特殊豆概率实测')
+{
+  const pg = new SnakeGame({ specialFood: true })
+  let sp = 0
+  const N = 20000
+  for (let i = 0; i < N; i++) { pg.spawnFood(); if (pg.food.type !== 'normal') sp++ }
+  const r = sp / N
+  check('实测概率落在 40%~50% 区间', r >= 0.38 && r <= 0.52, `${(r * 100).toFixed(1)}%`)
 }
 
 section('分数段与连击')

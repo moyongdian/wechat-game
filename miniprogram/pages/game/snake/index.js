@@ -31,7 +31,6 @@ Page({
     bossMode: false,          // 老板键伪装中
     showSettings: false,
     remainSeconds: 0,
-    shield: 0,
     effectText: '',
     bubbles: [],              // 装饰性聊天气泡
     bgStyle: 'background: #EDEDED',
@@ -170,6 +169,8 @@ Page({
   stopLoop() {
     if (this.timer) { clearTimeout(this.timer); this.timer = null }
     if (this.secondTimer) { clearInterval(this.secondTimer); this.secondTimer = null }
+    if (this.boostTimer) { clearTimeout(this.boostTimer); this.boostTimer = null }
+    this.boostDir = null
   },
 
   stepOnce() {
@@ -180,17 +181,17 @@ Page({
     if (r.shielded) {
       const s = settings.get()
       util.vibrate(s.vibrate)
-      this.showToast(r.shielded === 'wall' ? '护盾抵挡了撞墙' : '护盾抵挡了撞击')
+      this.showToast(r.shielded === 'invincible' ? '无敌状态' : '被抵挡')
     }
     if (r.gained) {
       const s = settings.get()
       util.vibrate(s.vibrate)
       if (r.special) {
         const label = { gold: '金豆 +5', double: '双倍得分 20s', pace: '减速 8s',
-                        shield: '护盾 +1', shrink: '蛇身 -2', packet: '红包 +' + r.gained }[r.special]
+                        packet: '红包 +' + r.gained }[r.special]
         this.showToast(label)
       }
-      this.setData({ score: g.score, shield: g.shield, multiplier: g.multiplier(), effectText: this.effectText() })
+      this.setData({ score: g.score, multiplier: g.multiplier(), effectText: this.effectText() })
     }
     // 红包弹窗分数（说明书：获取时屏幕弹出红色的分数）
     if (g.packetPopup) {
@@ -207,7 +208,6 @@ Page({
     const parts = []
     if (g.hasEffect('double')) parts.push('×2 ' + g.effects.double + 's')
     if (g.hasEffect('slow')) parts.push('减速 ' + g.effects.slow + 's')
-    if (g.shield) parts.push('护盾 ×' + g.shield)
     return parts.join(' · ')
   },
 
@@ -330,7 +330,6 @@ Page({
    *  - 金豆：金色圆（大）+ 深金描边
    *  - 双倍豆：白色方块 + 「×2」
    *  - 减速豆：蓝色圆（中）
-   *  - 护盾豆：白色盾牌形（上宽下尖）+ 蓝边
    *  - 缩小豆：白色小圆（最小）
    *  - 红包：红色圆角矩形（最大）+ 金边与金色封口
    */
@@ -340,7 +339,6 @@ Page({
    *  - 金豆：金色圆（大）
    *  - 减速豆：蓝色圆
    *  - 双倍豆：白色方块 + 「×2」
-   *  - 护盾豆：白色盾牌形
    *  - 红包：红色圆角矩形（最大）
    */
   drawFood(ctx, food, ox, oy, cell) {
@@ -365,24 +363,6 @@ Page({
       ctx.fill()
       ctx.lineWidth = Math.max(1.5, cell * 0.07)
       ctx.strokeStyle = '#FFFFFF'
-      ctx.stroke()
-      return
-    }
-
-    // ── 护盾豆：盾牌形 ──
-    if (type === 'shield') {
-      const w = cell * 0.74, h = cell * 0.86
-      ctx.beginPath()
-      ctx.moveTo(cx - w / 2, cy - h / 2)
-      ctx.lineTo(cx + w / 2, cy - h / 2)
-      ctx.lineTo(cx + w / 2, cy + h * 0.08)
-      ctx.lineTo(cx, cy + h / 2)
-      ctx.lineTo(cx - w / 2, cy + h * 0.08)
-      ctx.closePath()
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fill()
-      ctx.lineWidth = ringW
-      ctx.strokeStyle = '#4C8DF6'
       ctx.stroke()
       return
     }
@@ -440,7 +420,7 @@ Page({
 
     // 初始铺满一段搞笑对话
     const arr = []
-    const seed = jokes.conversation(2)
+    const seed = jokes.conversation(3)
     seed.forEach((m) => arr.push(this.makeMessage(arr.length, m)))
     this.setData({ messages: arr, scrollTo: 'msg-' + arr[arr.length - 1].id })
     this.startChatTimer()
@@ -461,8 +441,7 @@ Page({
     this.stopChatTimer()
     const s = settings.get()
     if (!s.fakeMsg) return
-    // 频率整体降低（间隔加长）
-    const iv = s.fakeMsgRate === 'high' ? 4000 : s.fakeMsgRate === 'mid' ? 6000 : 9000
+    const iv = s.fakeMsgRate === 'high' ? 2200 : s.fakeMsgRate === 'mid' ? 3800 : 6000
     this.chatTimer = setInterval(() => {
       if (this.data.bossMode) return
       const list = (this.data.messages || []).slice()
@@ -489,7 +468,12 @@ Page({
     if (!this.game || this.game.state === 'over') this.createGame()
     this.game.start()
     this.setData({ running: true, paused: false, over: false, result: { show: false } })
-    this.buildBubbles()
+    // 修复：暂停→继续 之后假消息不再更新
+    // 原因为重复启动定时器（暂停时旧定时器仍在，resume 又新建一个），
+    // 这里统一先停后启；消息内容不清空，只恢复刷新。
+    this.stopChatTimer()
+    if (!(this.data.messages || []).length) this.buildBubbles()
+    else this.startChatTimer()
     this.startLoop()
     this.draw()
   },
@@ -501,6 +485,8 @@ Page({
     } else if (this.game.state === 'paused') {
       this.game.resume()
       this.setData({ paused: false, running: true })
+      this.stopChatTimer()
+      this.startChatTimer()
       this.startLoop()
     }
   },
@@ -509,6 +495,7 @@ Page({
     if (!this.game) return
     this.game.pause()
     this.stopLoop()
+    this.stopChatTimer()          // 暂停时停掉聊天刷新，避免定时器泄漏
     this.setData({ paused: true, running: false })
     if (reason === 'hide') this.pausedByHide = true
   },
@@ -524,7 +511,7 @@ Page({
     this.showToast('已重开')
   },
 
-  /** 方向键 */
+  /** 方向键（点按） */
   onDir(e) {
     const dir = e.currentTarget.dataset.dir
     if (!this.game) return
@@ -534,9 +521,41 @@ Page({
     if (this.game.state !== 'running') return
     const ok = this.game.turn(dir)
     if (!ok) return
-    // 微反馈
     const s = settings.get()
     util.vibrate(s.vibrate)
+  },
+
+  /** 长按方向键开始：蛇速提高 1 倍（表现为按得越久走得越快） */
+  onDirLongStart(e) {
+    const dir = e.currentTarget.dataset.dir
+    this.onDir(e)                                  // 先按一次方向
+    if (!this.game || this.game.state !== 'running') return
+    this.boostDir = dir
+    this.stopLoop()                                // 停掉常规循环，改由加速循环驱动
+    this.startBoostLoop()
+  },
+
+  /** 长按结束：恢复正常速度 */
+  onDirLongEnd() {
+    this.boostDir = null
+    if (this.boostTimer) { clearTimeout(this.boostTimer); this.boostTimer = null }
+    // 恢复常规速度循环
+    if (this.game && this.game.state === 'running') this.startLoop()
+  },
+
+  /** 加速循环：按常规间隔的一半推进（速度提高 1 倍） */
+  startBoostLoop() {
+    const step = () => {
+      if (!this.game || this.game.state !== 'running' || !this.boostDir) return
+      // 加速期间保持该方向
+      this.game.dirName = this.boostDir
+      this.game.dir = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
+                        left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }[this.boostDir]
+      this.stepOnce()
+      if (!this.game || this.game.state !== 'running') return
+      this.boostTimer = setTimeout(step, Math.max(30, this.game.interval() / 2))
+    }
+    this.boostTimer = setTimeout(step, Math.max(30, this.game.interval() / 2))
   },
 
   /* ---------- 消息区滑动控制方向（说明书 §5.3） ---------- */

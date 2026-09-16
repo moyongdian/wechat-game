@@ -5,7 +5,7 @@
  * 规则依据说明书：
  *  - §6 基础规则：初始 3 节、向右、定时移动、普通豆随机且不在蛇身上、特殊豆概率 20%-30%
  *  - §6.1 三种模式：经典（撞墙死）/ 穿墙（左右上下互通）/ 限时（60 秒）
- *  - §6 特殊豆：金豆 / 双倍豆 / 减速豆 / 护盾豆 / 缩小豆 / 红包（加速豆已按需求移除）
+ *  - §6 特殊豆：金豆 / 双倍豆 / 减速豆 / 红包（加速豆、缩小豆、护盾豆已按需求移除）
  */
 
 const MODES = { CLASSIC: 'classic', WRAP: 'wrap', TIMED: 'timed' }
@@ -23,7 +23,6 @@ const SPECIALS = {
   slow:    { label: '减速豆', points: 3,  color: '#1989FA', duration: 8 },
   gold:    { label: '金豆',   points: 5,  color: '#FFD700', duration: 0 },
   double:  { label: '双倍豆', points: 1,  color: '#FFFFFF', duration: 20 },
-  shield:  { label: '护盾豆', points: 3,  color: '#FFFFFF', duration: 0 },
   packet:  { label: '红包',   points: 0,  color: '#FA5151', duration: 0 } // 分数随机 10-50
 }
 
@@ -45,8 +44,12 @@ const MIN_INTERVAL = 60         // 移动间隔下限
 const COMBO_DOUBLE = 2          // 每阶段连击倍率倍数
 
 /** 特殊豆出现概率（说明书建议 20%-30%） */
-// 特殊豆基础概率 25%，按需求再提高 10%（相对）→ 27.5%
-const SPECIAL_RATE_MID = 0.275
+/** 特殊豆出现概率区间（每次生成时在区间内随机） */
+const SPECIAL_RATE_MIN = 0.40
+const SPECIAL_RATE_MAX = 0.50
+
+/** 兼容旧调用：区间中值 */
+const SPECIAL_RATE_MID = (SPECIAL_RATE_MIN + SPECIAL_RATE_MAX) / 2
 
 /**
  * @param {object} opts
@@ -85,7 +88,6 @@ class SnakeGame {
     this.comboCount = 0        // 累计吃豆数（达到分数段即翻倍）
     this.alive = true
     this.state = 'ready'       // ready | running | paused | over
-    this.shield = 0            // 护盾次数（抵挡一次伤害）
     this.invincible = 0        // 无敌剩余秒数（护盾触发后 3 秒）
     this.effects = {}          // { double: 剩余秒, slow: 剩余秒 }
     this.packetPopup = 0       // 红包弹窗分数（>0 时前端展示）
@@ -155,12 +157,8 @@ class SnakeGame {
    * 优先级：无敌中 > 护盾（消耗一次护盾，并触发 3 秒无敌）> 死亡
    */
   takeDamage(reason) {
+    // 护盾豆已删除，仅保留无敌判定（供将来扩展使用）
     if (this.invincible > 0) return { blocked: true, by: 'invincible' }
-    if (this.shield > 0) {
-      this.shield -= 1
-      this.invincible = INVINCIBLE_SECONDS
-      return { blocked: true, by: 'shield' }
-    }
     this.gameOver(reason)
     return { blocked: false }
   }
@@ -186,7 +184,8 @@ class SnakeGame {
     const cell = this.randomFreeCell()
     if (!cell) { this.food = null; return }
     let type = 'normal'
-    if (this.specialFood && Math.random() < SPECIAL_RATE_MID) {
+    const rate = SPECIAL_RATE_MIN + Math.random() * (SPECIAL_RATE_MAX - SPECIAL_RATE_MIN)
+    if (this.specialFood && Math.random() < rate) {
       type = SPECIAL_KEYS[Math.floor(Math.random() * SPECIAL_KEYS.length)]
     }
     this.food = { x: cell.x, y: cell.y, type }
@@ -283,7 +282,6 @@ class SnakeGame {
       // 效果类
       if (type === 'double') this.effects.double = (this.effects.double || 0) + SPECIALS.double.duration
       if (type === 'slow')   this.effects.slow   = (this.effects.slow   || 0) + SPECIALS.slow.duration
-      if (type === 'shield') this.shield += 1
     }
 
     // 双倍豆：吃豆得分翻倍
@@ -370,7 +368,7 @@ class SnakeGame {
       snake: this.snake, food: this.food,
       score: this.score, state: this.state, alive: this.alive,
       stage: this.stage(), multiplier: this.multiplier(),
-      shield: this.shield, invincible: this.invincible, effects: this.effects,
+      invincible: this.invincible, effects: this.effects,
       remainSeconds: this.remainSeconds,
       overReason: this.overReason,
       packetPopup: this.packetPopup
@@ -378,4 +376,4 @@ class SnakeGame {
   }
 }
 
-module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MID, INVINCIBLE_SECONDS, STAGE_THRESHOLDS }
+module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MIN, SPECIAL_RATE_MAX, SPECIAL_RATE_MID, INVINCIBLE_SECONDS, STAGE_THRESHOLDS }

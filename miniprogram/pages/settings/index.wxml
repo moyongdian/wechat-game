@@ -45,9 +45,8 @@
         <view class="knob"></view>
       </view>
     </view>
-    <view class="tip">金豆 / 双倍 / 减速 / 护盾 / 红包（形状与颜色各不相同）</view>
-    <view class="tip">护盾豆可抵挡一次伤害，并进入 3 秒无敌</view>
-    <view class="tip">分数达到 50 / 100 / 200 / 400 进入新阶段：速度提升，吃豆得分翻倍</view>
+    <view class="tip">金豆 / 双倍 / 减速 / 红包（形状与颜色各不相同）</view>
+        <view class="tip">分数达到 50 / 100 / 200 / 400 进入新阶段：速度提升，吃豆得分翻倍</view>
   </view>
 
   <!-- 伪装增强 -->
