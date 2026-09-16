@@ -20,6 +20,7 @@ const DIRS = {
 
 /** 特殊豆配置（说明书 §6 特殊豆设计表） */
 const SPECIALS = {
+  slow:    { label: '减速豆', points: 3,  color: '#1989FA', duration: 8 },
   gold:    { label: '金豆',   points: 5,  color: '#FFD700', duration: 0 },
   double:  { label: '双倍豆', points: 1,  color: '#FFFFFF', duration: 20 },
   shield:  { label: '护盾豆', points: 3,  color: '#FFFFFF', duration: 0 },
@@ -29,14 +30,12 @@ const SPECIALS = {
 
 const SPECIAL_KEYS = Object.keys(SPECIALS)
 
-/**
- * 常驻「节奏豆」：固定出现在场上，被吃掉后立即再生成一个
- * （与随机特殊豆互不影响）。吃掉可降低蛇速，用于降低难度。
- */
-const PACE = { label: '减速豆', points: 3, color: '#1989FA', duration: 8 }
+/** 护盾抵挡一次伤害后的无敌时长（秒） */
+const INVINCIBLE_SECONDS = 3
 
 /** 特殊豆出现概率（说明书建议 20%-30%） */
-const SPECIAL_RATE_MID = 0.25
+// 特殊豆基础概率 25%，按需求再提高 10%（相对）→ 27.5%
+const SPECIAL_RATE_MID = 0.275
 
 /**
  * @param {object} opts
@@ -74,13 +73,13 @@ class SnakeGame {
     this.score = 0
     this.alive = true
     this.state = 'ready'       // ready | running | paused | over
-    this.shield = 0            // 护盾次数
+    this.shield = 0            // 护盾次数（抵挡一次伤害）
+    this.invincible = 0        // 无敌剩余秒数（护盾触发后 3 秒）
     this.effects = {}          // { double: 剩余秒, slow: 剩余秒 }
     this.packetPopup = 0       // 红包弹窗分数（>0 时前端展示）
     this.remainSeconds = this.mode === MODES.TIMED ? this.timedSeconds : 0
     this.food = null
-    this.paceFood = null
-    this.spawnFood(true)
+    this.spawnFood()
     return this
   }
 
@@ -126,11 +125,32 @@ class SnakeGame {
   }
 
   /** 限时模式倒计时（每秒调用一次） */
+  /**
+   * 每秒推进一次：特殊豆效果与无敌倒计时对所有模式生效；
+   * 限时模式额外推进总倒计时。
+   */
   tickSecond() {
-    if (this.mode !== MODES.TIMED || this.state !== 'running') return
-    this.remainSeconds = Math.max(0, this.remainSeconds - 1)
+    if (this.state !== 'running') return
     this.tickEffects()
+    if (this.invincible > 0) this.invincible = Math.max(0, this.invincible - 1)
+    if (this.mode !== MODES.TIMED) return
+    this.remainSeconds = Math.max(0, this.remainSeconds - 1)
     if (this.remainSeconds === 0) this.gameOver('timeout')
+  }
+
+  /**
+   * 受到一次伤害，返回是否被抵挡。
+   * 优先级：无敌中 > 护盾（消耗一次护盾，并触发 3 秒无敌）> 死亡
+   */
+  takeDamage(reason) {
+    if (this.invincible > 0) return { blocked: true, by: 'invincible' }
+    if (this.shield > 0) {
+      this.shield -= 1
+      this.invincible = INVINCIBLE_SECONDS
+      return { blocked: true, by: 'shield' }
+    }
+    this.gameOver(reason)
+    return { blocked: false }
   }
 
   /* ---------------- 生成豆子 ---------------- */
@@ -149,16 +169,8 @@ class SnakeGame {
     return free[Math.floor(Math.random() * free.length)]
   }
 
-  /**
-   * 生成豆子。
-   * 节奏豆（PACE）被打掉后必定重新生成；其余位置生成普通豆或随机特殊豆。
-   */
-  spawnFood(forcePace) {
-    // 场上没有节奏豆时补一个（保证「减速豆」始终存在）
-    if (forcePace || !this.paceFood) {
-      const c = this.randomFreeCell()
-      if (c) this.paceFood = { x: c.x, y: c.y, type: 'pace' }
-    }
+  /** 生成豆子：普通豆或随机特殊豆（概率 SPECIAL_RATE_MID） */
+  spawnFood() {
     const cell = this.randomFreeCell()
     if (!cell) { this.food = null; return }
     let type = 'normal'
@@ -189,30 +201,27 @@ class SnakeGame {
       if (this.mode === MODES.WRAP) {
         nx = (nx + this.cols) % this.cols
         ny = (ny + this.rows) % this.rows
-      } else if (this.shield > 0) {
-        this.shield -= 1
-        // 护盾抵消一次撞墙：原地掉头（反向），避免立刻再次撞墙
-        const opposite = { up: 'down', down: 'up', left: 'right', right: 'left' }[this.dirName]
-        this.dirName = opposite
-        this.dir = DIRS[opposite]
-        return { moved: false, shielded: 'wall' }
       } else {
-        this.gameOver('wall')
+        const r = this.takeDamage('wall')
+        if (r.blocked) {
+          // 被护盾/无敌抵挡：原地掉头，避免立刻再次撞墙
+          const opposite = { up: 'down', down: 'up', left: 'right', right: 'left' }[this.dirName]
+          this.dirName = opposite
+          this.dir = DIRS[opposite]
+          return { moved: false, shielded: r.by }
+        }
         return { moved: false, dead: 'wall' }
       }
     }
 
     // 撞自己（蛇尾即将移动，因此允许移动到当前尾部位置）
     const eating = (f) => f && nx === f.x && ny === f.y
-    const willEat = eating(this.food) || eating(this.paceFood)
+    const willEat = eating(this.food)
     const body = willEat ? this.snake : this.snake.slice(0, -1)
     const hitSelf = body.some((s) => s.x === nx && s.y === ny)
     if (hitSelf) {
-      if (this.shield > 0) {
-        this.shield -= 1
-        return { moved: false, shielded: 'self' }
-      }
-      this.gameOver('self')
+      const r = this.takeDamage('self')
+      if (r.blocked) return { moved: false, shielded: r.by }
       return { moved: false, dead: 'self' }
     }
 
@@ -222,8 +231,7 @@ class SnakeGame {
     let special = null
 
     if (willEat) {
-      const target = eating(this.food) ? this.food : this.paceFood
-      const res = this.consume(target)
+      const res = this.consume(this.food)
       gained = res.gained
       special = res.special
     } else {
@@ -241,12 +249,6 @@ class SnakeGame {
 
     if (type === 'normal') {
       gained = this.foodPoints
-    } else if (type === 'pace') {
-      // 常驻节奏豆：加分 + 减速，并立即再生成一个
-      gained = PACE.points
-      this.effects.slow = (this.effects.slow || 0) + PACE.duration
-      special = 'pace'
-      this.paceFood = null
     } else {
       const cfg = SPECIALS[type]
       special = type
@@ -300,7 +302,7 @@ class SnakeGame {
       cols: this.cols, rows: this.rows,
       snake: this.snake, food: this.food,
       score: this.score, state: this.state, alive: this.alive,
-      shield: this.shield, effects: this.effects,
+      shield: this.shield, invincible: this.invincible, effects: this.effects,
       remainSeconds: this.remainSeconds,
       overReason: this.overReason,
       packetPopup: this.packetPopup
@@ -308,4 +310,4 @@ class SnakeGame {
   }
 }
 
-module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, PACE, SPECIAL_RATE_MID }
+module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MID, INVINCIBLE_SECONDS }

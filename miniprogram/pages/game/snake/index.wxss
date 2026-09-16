@@ -103,9 +103,9 @@ page {
   flex: 1;
   overflow: hidden;
   background: #EDEDED;
-  border: 2rpx solid var(--line-strong);
-  border-radius: 12rpx;
-  margin: 12rpx;
+  border: 2rpx solid var(--line-strong);   /* 墙体与此外框重合、同色同宽 */
+  border-radius: 0;
+  margin: 0;
 }
 .canvas {
   position: absolute;

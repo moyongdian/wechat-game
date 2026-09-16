@@ -114,9 +114,12 @@ Page({
       this.canvas = canvas
       this.ctx = ctx
       this.dpr = dpr
+      // 让网格精确填满消息区内框：墙的位置即界面边框位置
+      this.cellsX = COLS
+      this.cellsY = Math.max(8, Math.round(COLS * (height / width)))
       this.vw = width
       this.vh = height
-      this.cell = Math.min(width / COLS, height / ROWS)
+      this.cell = width / COLS
 
       this.createGame()
       this.draw()
@@ -126,7 +129,8 @@ Page({
   createGame() {
     const s = settings.get()
     this.game = new SnakeGame({
-      cols: COLS, rows: ROWS,
+      cols: this.cellsX || COLS,
+      rows: this.cellsY || ROWS,
       mode: s.mode,
       speed: s.speed,
       specialFood: s.specialFood,
@@ -150,15 +154,16 @@ Page({
     }
     this.timer = setTimeout(step, this.game.interval())
 
-    // 限时模式：秒级倒计时
-    if (this.game.mode === MODES.TIMED) {
-      this.secondTimer = setInterval(() => {
-        if (!this.game || this.game.state !== 'running') return
-        this.game.tickSecond()
-        this.setData({ remainSeconds: this.game.remainSeconds })
-        if (this.game.state === 'over') this.onGameOver()
-      }, 1000)
-    }
+    // 秒级计时：特殊豆效果、无敌倒计时（所有模式）；限时模式另有总倒计时
+    this.secondTimer = setInterval(() => {
+      if (!this.game || this.game.state !== 'running') return
+      this.game.tickSecond()
+      this.setData({
+        remainSeconds: this.game.remainSeconds,
+        effectText: this.effectText()
+      })
+      if (this.game.state === 'over') this.onGameOver()
+    }, 1000)
   },
 
   stopLoop() {
@@ -239,30 +244,51 @@ Page({
       ctx.fillRect(0, 0, this.vw, this.vh)
     }
 
-    const ox = (this.vw - cell * COLS) / 2
-    const oy = (this.vh - cell * ROWS) / 2
+    // 网格填满内框，无居中留白 → 墙体即为界面边框
+    const ox = 0
+    const oy = 0
 
     // 墙体：与界面边框同色同宽（界面边框 2rpx）
     // 墙宽与界面边框一致：2rpx ≈ 1px（ctx 已按 dpr 缩放，无需再乘）
     ctx.strokeStyle = '#D6D6D6'
     ctx.lineWidth = 1
-    ctx.strokeRect(ox, oy, cell * COLS, cell * ROWS)
+    ctx.strokeRect(ox, oy, cell * this.cellsX, cell * this.cellsY)
 
-    // 豆子：普通豆/特殊豆 + 常驻节奏豆
+    // 豆子：各类特殊豆在形状/大小/颜色上区分（见 drawFood）
     this.drawFood(ctx, g.food, ox, oy, cell)
-    this.drawFood(ctx, g.paceFood, ox, oy, cell)
 
-    // 蛇（绿色 #07C160，蛇头略深 #06AD56）
+    // 蛇：椭圆连体渲染（首尾渐细 + 颜色渐变 → 连成一条蛇身，不再是断开的方块）
     const n = g.snake.length
+    const inv = (g.invincible || 0) > 0
+    const pulse = inv ? 1 + 0.06 * Math.sin(Date.now() / 130) : 1
     for (let i = n - 1; i >= 0; i--) {
       const seg = g.snake[i]
-      const x = ox + seg.x * cell
-      const y = oy + seg.y * cell
-      const pad = Math.max(1, cell * 0.08)
-      ctx.fillStyle = i === 0 ? '#06AD56' : '#07C160'
-      const rad = Math.max(2, cell * 0.22)
-      this.roundRect(ctx, x + pad, y + pad, cell - pad * 2, cell - pad * 2, rad)
+      const cx = ox + seg.x * cell + cell / 2
+      const cy = oy + seg.y * cell + cell / 2
+      const t = n > 1 ? i / (n - 1) : 0          // 0=蛇头 1=蛇尾
+      const w = cell * (0.50 - 0.10 * t) * pulse
+      const h = cell * (0.46 - 0.10 * t) * pulse
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2)
+      if (i === 0) {
+        ctx.fillStyle = inv ? '#22D3EE' : '#06AD56'
+      } else if (inv) {
+        ctx.fillStyle = `rgba(34, 211, 238, ${0.95 - 0.35 * t})`
+      } else {
+        // 亮绿 → 深绿渐变
+        const k = 1 - t
+        ctx.fillStyle = `rgb(${Math.round(7 + 30 * (1 - k))}, ${Math.round(150 + 55 * k)}, ${Math.round(80 + 20 * k)})`
+      }
       ctx.fill()
+    }
+    // 无敌光环
+    if (inv) {
+      ctx.beginPath()
+      ctx.arc(ox + g.snake[0].x * cell + cell / 2, oy + g.snake[0].y * cell + cell / 2,
+        cell * 0.8, 0, Math.PI * 2)
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.75)'
+      ctx.lineWidth = Math.max(1.5, cell * 0.08)
+      ctx.stroke()
     }
   },
 

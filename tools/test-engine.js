@@ -2,7 +2,7 @@
  * 贪吃蛇内核单元测试（对照《小游戏功能说明书》逐条验证）
  * 运行：node tools/test-engine.js
  */
-const { SnakeGame, MODES, SPECIALS } = require('../miniprogram/utils/snake-engine')
+const { SnakeGame, MODES, SPECIALS, SPECIAL_RATE_MID, INVINCIBLE_SECONDS } = require('../miniprogram/utils/snake-engine')
 
 let pass = 0, fail = 0
 const failures = []
@@ -122,19 +122,12 @@ g.tick()
 check('双倍期间普通豆得 2 分', g.score - before === 2, `+${g.score - before}`)
 
 g = makeGame(); g.start()
-// 常驻节奏豆：场上始终存在一个
-check('初始即存在常驻节奏豆', !!g.paceFood && g.paceFood.type === 'pace',
-  g.paceFood ? `(${g.paceFood.x},${g.paceFood.y}) ${g.paceFood.type}` : 'null')
-const paceBefore = g.interval()
-const pf = g.paceFood
-g.snake = [{ x: pf.x - 1, y: pf.y }, { x: pf.x - 2, y: pf.y }, { x: pf.x - 3, y: pf.y }]
-g.dir = { x: 1, y: 0 }; g.dirName = 'right'
+g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'slow' }
+const slowIv = g.interval()
 g.tick()
-check('吃节奏豆 +3 分', g.score === 3, `score=${g.score}`)
-check('吃节奏豆进入 8 秒减速', g.hasEffect('slow') && g.effects.slow === 8, JSON.stringify(g.effects))
-check('减速后移动间隔变长', g.interval() > paceBefore, `${paceBefore} → ${g.interval()}`)
-check('吃掉后立即补新的节奏豆', !!g.paceFood && g.paceFood.type === 'pace',
-  g.paceFood ? `(${g.paceFood.x},${g.paceFood.y})` : 'null')
+check('减速豆 +3 分', g.score === 3, `score=${g.score}`)
+check('减速豆进入 8 秒效果', g.hasEffect('slow') && g.effects.slow === 8, JSON.stringify(g.effects))
+check('减速后移动间隔变长', g.interval() > slowIv, `${slowIv} → ${g.interval()}`)
 
 g = makeGame(); g.start()
 g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'shield' }
@@ -146,6 +139,15 @@ g.dir = { x: 1, y: 0 }; g.dirName = 'right'; g.effects = {}
 g.tick()
 check('护盾免疫一次撞墙且不死亡', g.state === 'running' && g.shield === 0,
   `state=${g.state} shield=${g.shield}`)
+check('护盾抵挡后进入 3 秒无敌', g.invincible === INVINCIBLE_SECONDS, `invincible=${g.invincible}`)
+// 无敌期间再次撞墙仍不死亡
+g.snake = [{ x: g.cellsX - 1, y: 5 }, { x: g.cellsX - 2, y: 5 }, { x: g.cellsX - 3, y: 5 }]
+g.dir = { x: 1, y: 0 }; g.dirName = 'right'
+g.tick()
+check('无敌期间撞墙不死亡', g.state === 'running', `state=${g.state}`)
+// 无敌时间递减后失效
+for (let i = 0; i < INVINCIBLE_SECONDS; i++) g.tickSecond()
+check('无敌时间结束后归零', g.invincible === 0, `invincible=${g.invincible}`)
 
 g = makeGame(); g.start()
 // 先把蛇拉长到 6 节
@@ -165,9 +167,10 @@ check('缩小豆最低保留 3 节', g.snake.length === 3, `实际 ${g.snake.len
 /* ---------- 速度 ---------- */
 section('需求变更验证')
 check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
-check('特殊豆已移除「减速豆」（改为常驻节奏豆）', !SPECIALS.slow, JSON.stringify(Object.keys(SPECIALS)))
-check('随机特殊豆共 5 种', Object.keys(SPECIALS).length === 5, String(Object.keys(SPECIALS).length))
-check('常驻节奏豆已导出', !!(require('../miniprogram/utils/snake-engine').PACE), JSON.stringify(require('../miniprogram/utils/snake-engine').PACE))
+check('减速豆已回归特殊豆', !!SPECIALS.slow, JSON.stringify(SPECIALS.slow))
+check('特殊豆共 6 种', Object.keys(SPECIALS).length === 6, Object.keys(SPECIALS).join('/'))
+check('特殊豆概率提高 10%（0.25 → 0.275）', Math.abs(SPECIAL_RATE_MID - 0.275) < 1e-9, String(SPECIAL_RATE_MID))
+check('护盾无敌时长为 3 秒', INVINCIBLE_SECONDS === 3, String(INVINCIBLE_SECONDS))
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
 check('慢速已降低（间隔 ≥ 280ms）', slowG.interval() >= 280, slowG.interval() + 'ms')
 
