@@ -331,13 +331,11 @@ Page({
     const g = this.game
     const cell = this.cell
 
-    // 背景（聊天底色）
+    // 只清空画布（保持透明）
+    // 注意：蛇层位于最上层（z-index 4），若在此填充不透明底色，
+    // 会把下面的豆子层与聊天层全部遮住。背景由消息区容器的 CSS
+    // （.msg-area 的 bgStyle）提供，画布必须保持透明。
     ctx.clearRect(0, 0, this.vw, this.vh)
-    const s = settings.get()
-    if (!s.background || s.background === 'default') {
-      ctx.fillStyle = '#EDEDED'
-      ctx.fillRect(0, 0, this.vw, this.vh)
-    }
 
     // 网格填满内框，无居中留白 → 墙体即为界面边框
     const ox = 0

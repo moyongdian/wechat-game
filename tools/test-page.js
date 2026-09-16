@@ -99,6 +99,14 @@ section('游戏页：豆子显示在假消息之上（双画布分层）')
   })())
   check('蛇画布已绑定 canvas-snake 类', wxml.includes('class="canvas canvas-snake"') &&
     src.includes("select('#gameCanvas')"))
+  // 关键：画布不得填充不透明底色，否则上层画布会遮住下层与聊天层
+  check('画布不填充不透明背景（保持透明）', (() => {
+    const draw = src.match(/\n  draw\(\) \{[\s\S]*?\n  \},/)
+    const layer = src.match(/\n  drawFoodLayer\(\) \{[\s\S]*?\n  \},/)
+    const noFill = (t) => t && !/fillRect/.test(t)
+    return noFill(draw && draw[0]) && noFill(layer && layer[0])
+  })())
+  check('背景由消息区容器提供（bgStyle）', wxml.includes('style="{{bgStyle}}"'))
   check('渲染循环同时绘制两层', src.includes('this.drawFoodLayer()'))
   check('豆子画布已初始化', src.includes('this.foodCtx') && src.includes("select('#foodCanvas')"))
 }
