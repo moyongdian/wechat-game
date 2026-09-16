@@ -68,8 +68,11 @@ section('游戏页：方向键即时响应（长按加速已按要求删除）')
   // 修复按键延迟：转向后重置插值基准并立即重绘
   const mDir = src.match(/\n  onDir\(e\) \{[\s\S]*?\n  \},/)
   const onDir = mDir ? mDir[0] : ''
-  check('转向后重置插值基准（修复视觉滞后）', onDir.includes('this.prevSnake = this.game.snake.map'))
-  check('转向后立即重绘', onDir.includes('this.draw()'))
+  // 按键延迟的真正来源是「方向要等下一个 tick」，改为按键立即推进一格
+  check('按键后立即推进一格（消除一个 tick 的等待）', onDir.includes('this.stepOnce()'))
+  check('立即推进前先停循环，避免节奏错乱', onDir.indexOf('this.stopLoop()') < onDir.indexOf('this.stepOnce()'))
+  check('推进后重启循环与渲染', onDir.includes('this.startLoop()') && onDir.includes('this.startRenderLoop()'))
+  check('连点保护（<40ms 只记录方向，避免瞬间多格）', onDir.includes('tooFast') && onDir.includes('< 40'))
 }
 
 section('游戏页：暂停 / 恢复时聊天定时器的清理（曾导致假消息不再更新）')

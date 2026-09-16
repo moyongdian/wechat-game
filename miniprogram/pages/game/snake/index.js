@@ -172,6 +172,12 @@ Page({
     }, 1000)
   },
 
+  /** 两点间曼哈顿距离（用于插值时长：直行 1，对角 2） */
+  distBetween(a, b) {
+    if (!a || !b) return 1
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+  },
+
   /** 初始化音效（本地 wav，无需网络） */
   initAudio() {
     try {
@@ -223,6 +229,9 @@ Page({
     this.prevSnake = g.snake.map((s2) => ({ x: s2.x, y: s2.y }))
     this.lastTickAt = Date.now()
     const r = g.tick()
+    // 立即转向会让相邻两节变为对角关系（位移 2 格），
+    // 渲染时按位移长度分配时长，避免斜切穿过墙角
+    this.moveDist = this.distBetween(this.prevSnake && this.prevSnake[0], g.snake[0])
     if (r.dead) { this.onGameOver(); return }
 
     if (r.shielded) {
@@ -324,12 +333,33 @@ Page({
     const pos = (i) => {
       const cur = g.snake[i]
       const from = prev[i] || cur
-      // 跨边界（穿墙）或间距过大时不插值，避免出现长线
-      if (Math.abs(from.x - cur.x) > 1 || Math.abs(from.y - cur.y) > 1) {
+      const dx = cur.x - from.x
+      const dy = cur.y - from.y
+      const manhattan = Math.abs(dx) + Math.abs(dy)
+      // 跨边界（穿墙，位移 > 2）不插值，避免出现长线
+      if (manhattan > 2) {
         return { x: ox + cur.x * cell + cell / 2, y: oy + cur.y * cell + cell / 2 }
       }
-      const fx = from.x + (cur.x - from.x) * p
-      const fy = from.y + (cur.y - from.y) * p
+      // 对角位移(2)需要在同样时间内走更远，这里按位移长度分摊进度：
+      // 先走完较长的轴，再走另一轴，避免斜切穿过墙角
+      let fx = from.x, fy = from.y
+      if (manhattan <= 1) {
+        fx = from.x + dx * p
+        fy = from.y + dy * p
+      } else {
+        const t = Math.min(1, p * manhattan)      // 0~1 走完整段
+        // 分两段：先走 x 再走 y（或按缺口大小决定顺序）
+        const half = 0.5
+        if (t <= half) {
+          const k = t / half
+          fx = from.x + dx * k
+          fy = from.y
+        } else {
+          const k = (t - half) / half
+          fx = from.x + dx
+          fy = from.y + dy * k
+        }
+      }
       return { x: ox + fx * cell + cell / 2, y: oy + fy * cell + cell / 2 }
     }
 
@@ -610,6 +640,16 @@ Page({
 
   /** 方向键（点按） */
   /** 方向键（点按） */
+  /**
+   * 方向键（点按）
+   *
+   * 按键延迟的来源不是平滑插值，而是「方向要等下一个 tick 才生效」——
+   * 最坏要等一个间隔（慢档 280ms / 中档 160ms）。这里改为：
+   *   按下方向键 → 立即应用方向并推进一格 → 再重启循环
+   * 使转向在按键瞬间可见，延迟 ≈ 0。
+   * 若两次按键间隔极短（<40ms，属于连点），则只记录方向交给下一个 tick，
+   * 避免因连点而瞬间前进多格。
+   */
   onDir(e) {
     const dir = e.currentTarget.dataset.dir
     if (!this.game) return
@@ -617,15 +657,22 @@ Page({
       this.onStart()
     }
     if (this.game.state !== 'running') return
-    const ok = this.game.turn(dir)
-    if (!ok) return
+    if (!this.game.turn(dir)) return
 
-    // 修复「按了不改变方向」的观感：
-    // 转向后把插值基准同步为当前蛇身并立即重绘，
-    // 否则画面会继续从转向前的旧位置滑行，看起来像没响应。
-    this.prevSnake = this.game.snake.map((s2) => ({ x: s2.x, y: s2.y }))
-    this.lastTickAt = Date.now() - this.game.interval()   // 进度=1，直接画在当前位置
-    this.draw()
+    const now = Date.now()
+    const tooFast = this.lastDirAt && (now - this.lastDirAt) < 40
+
+    if (tooFast) {
+      // 连点：仅记录方向，等下一个 tick 生效
+      if (this.game) this.game.pendingDir = dir
+    } else {
+      // 立即推进一格，让转向即时可见
+      this.stopLoop()
+      this.stepOnce()                 // 内部会记录 prevSnake / lastTickAt 并处理死亡
+      if (this.game && this.game.state === 'running') this.startLoop()
+      this.startRenderLoop()
+    }
+    this.lastDirAt = now
 
     const s = settings.get()
     util.vibrate(s.vibrate)
