@@ -240,8 +240,10 @@ Page({
     const ox = (this.vw - cell * COLS) / 2
     const oy = (this.vh - cell * ROWS) / 2
 
-    // 装饰性聊天气泡（透明度低，不影响游戏）
-    if (!this.data.bossMode) this.drawBubbles(ctx, ox, oy)
+    // 墙体边框：黑色，标出蛇可活动的范围（穿墙模式下蛇可穿越此线）
+    ctx.strokeStyle = '#000000'
+    ctx.lineWidth = Math.max(2, cell * 0.12)
+    ctx.strokeRect(ox, oy, cell * COLS, cell * ROWS)
 
     // 豆子
     if (g.food) {
@@ -292,39 +294,48 @@ Page({
     ctx.closePath()
   },
 
-  /** 生成聊天消息（含头像、随机内容、左右分布） */
+  /**
+   * 初始化聊天消息：模拟真实微信聊天，消息按时间顺序向下累积
+   * 对方在左、自己在右，靠边框两侧对齐
+   */
   buildBubbles() {
-    const arr = []
     const s = settings.get()
-    if (!s.fakeMsg) { this.setData({ bubbles: [] }); this.stopChatTimer(); return }
+    this.msgSeq = 0
+    if (!s.fakeMsg) { this.setData({ messages: [], scrollTo: '' }); this.stopChatTimer(); return }
 
-    for (let i = 0; i < 4; i++) {
-      const self = i % 2 === 1      // 交替左右，像真实对话
-      arr.push({
-        id: i,
-        text: fake.pick(fake.BUBBLES),
-        left: self ? 40 + Math.random() * 10 : 6 + Math.random() * 10,
-        top: 6 + i * 22 + Math.random() * 6,
-        self,
-        avatar: self ? AVATAR_ME : AVATAR_OTHER
-      })
-    }
-    this.setData({ bubbles: arr })
+    const arr = []
+    for (let i = 0; i < 6; i++) arr.push(this.makeMessage(arr.length))
+    this.setData({ messages: arr, scrollTo: 'msg-' + arr[arr.length - 1].id })
     this.startChatTimer()
   },
 
-  /** 定时随机更换聊天内容，让消息区看起来在持续对话 */
+  /** 构造一条随机消息（随机对方/自己、随机文案） */
+  makeMessage(seq) {
+    const self = Math.random() > 0.5
+    const id = ++this.msgSeq
+    return {
+      id,
+      seq,
+      text: fake.pick(fake.BUBBLES),
+      self,
+      avatar: self ? AVATAR_ME : AVATAR_OTHER
+    }
+  },
+
+  /** 定时追加新消息并向下滚动（像真实聊天持续收到消息） */
   startChatTimer() {
     this.stopChatTimer()
     const s = settings.get()
     if (!s.fakeMsg) return
-    const iv = s.fakeMsgRate === 'high' ? 2500 : s.fakeMsgRate === 'mid' ? 4200 : 6500
+    const iv = s.fakeMsgRate === 'high' ? 2200 : s.fakeMsgRate === 'mid' ? 3800 : 6000
     this.chatTimer = setInterval(() => {
       if (this.data.bossMode) return
-      const arr = (this.data.bubbles || []).map((b) => (
-        Math.random() < 0.4 ? Object.assign({}, b, { text: fake.pick(fake.BUBBLES) }) : b
-      ))
-      this.setData({ bubbles: arr })
+      const list = (this.data.messages || []).slice()
+      list.push(this.makeMessage(list.length))
+      // 只保留最近 40 条，避免长期运行内存增长
+      while (list.length > 40) list.shift()
+      const last = list[list.length - 1]
+      this.setData({ messages: list, scrollTo: 'msg-' + last.id })
     }, iv)
   },
 

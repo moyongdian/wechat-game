@@ -23,43 +23,48 @@
   </view>
   <view style="height:{{statusBarHeight + navHeight}}px"></view>
 
-  <!-- 消息区：游戏画布 + 装饰气泡（双击伪装） -->
-  <view class="msg-area" style="{{bgStyle}}"
-        bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" bindtap="onMessageTap">
+  <!-- 消息区：游戏画布（底层） + 聊天消息流（滚动层） -->
+  <view class="msg-area" style="{{bgStyle}}">
+    <!-- 游戏画布：含黑色边框的墙 -->
     <canvas type="2d" id="gameCanvas" class="canvas"></canvas>
 
-    <!-- 装饰性聊天消息（头像 + 随机内容，低透明度增强聊天观感） -->
-    <block wx:if="{{!bossMode}}">
-      <view class="msg {{item.self ? 'right' : 'left'}}"
-            wx:for="{{bubbles}}" wx:key="id"
-            style="left:{{item.left}}%; top:{{item.top}}%">
-        <image class="msg-avatar" src="{{item.avatar}}" mode="aspectFill" />
-        <view class="msg-bubble">
-          <text>{{item.text}}</text>
+    <!-- 聊天消息流：新消息从下方出现并向上滚动 -->
+    <scroll-view class="chat-scroll" scroll-y scroll-with-animation
+                 scroll-into-view="{{scrollTo}}"
+                 bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" bindtap="onMessageTap"
+                 wx:if="{{!bossMode}}">
+      <view class="chat-inner">
+        <view class="msg {{item.self ? 'right' : 'left'}}"
+              wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+          <image class="msg-avatar" src="{{item.avatar}}" mode="aspectFill" />
+          <view class="msg-bubble">
+            <text>{{item.text}}</text>
+          </view>
         </view>
       </view>
-    </block>
+    </scroll-view>
 
     <!-- 老板键伪装层：显示普通聊天内容 -->
-    <view class="boss-layer" wx:if="{{bossMode}}">
-      <view class="boss-tip">聊天记录已隐藏</view>
-      <view class="msg left" style="left:8%; top:16%">
-        <image class="msg-avatar" src="/images/avatar-snake.png" mode="aspectFill" />
-        <view class="msg-bubble"><text>这个我看一下</text></view>
+    <scroll-view class="chat-scroll" scroll-y wx:if="{{bossMode}}">
+      <view class="chat-inner">
+        <view class="msg left">
+          <image class="msg-avatar" src="/images/avatar-snake.png" mode="aspectFill" />
+          <view class="msg-bubble"><text>这个我看一下</text></view>
+        </view>
+        <view class="msg right">
+          <image class="msg-avatar" src="/images/avatar-me.png" mode="aspectFill" />
+          <view class="msg-bubble"><text>好的，稍等</text></view>
+        </view>
+        <view class="msg left">
+          <image class="msg-avatar" src="/images/avatar-snake.png" mode="aspectFill" />
+          <view class="msg-bubble"><text>晚点回复你</text></view>
+        </view>
+        <view class="msg right">
+          <image class="msg-avatar" src="/images/avatar-me.png" mode="aspectFill" />
+          <view class="msg-bubble"><text>收到</text></view>
+        </view>
       </view>
-      <view class="msg right" style="left:40%; top:32%">
-        <image class="msg-avatar" src="/images/avatar-me.png" mode="aspectFill" />
-        <view class="msg-bubble"><text>好的，稍等</text></view>
-      </view>
-      <view class="msg left" style="left:10%; top:50%">
-        <image class="msg-avatar" src="/images/avatar-snake.png" mode="aspectFill" />
-        <view class="msg-bubble"><text>晚点回复你</text></view>
-      </view>
-      <view class="msg right" style="left:44%; top:66%">
-        <image class="msg-avatar" src="/images/avatar-me.png" mode="aspectFill" />
-        <view class="msg-bubble"><text>收到</text></view>
-      </view>
-    </view>
+    </scroll-view>
 
     <!-- 未开始提示 -->
     <view class="hint" wx:if="{{!running && !paused && !over && !bossMode}}">
