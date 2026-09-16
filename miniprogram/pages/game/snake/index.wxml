@@ -91,6 +91,14 @@
 
     <!-- 轻提示 -->
     <view class="toast" wx:if="{{toastText}}">{{toastText}}</view>
+
+    <!-- 当前 buff：右下角 -->
+    <view class="buff-panel" wx:if="{{buffs.length && !bossMode}}">
+      <view class="buff-item" wx:for="{{buffs}}" wx:key="key">
+        <text class="buff-label">{{item.label}}</text>
+        <text class="buff-time" wx:if="{{item.seconds > 0}}">{{item.seconds}}s</text>
+      </view>
+    </view>
   </view>
 
   <!-- 暂停时：底部换成仿微信聊天输入栏（点击可继续游戏） -->

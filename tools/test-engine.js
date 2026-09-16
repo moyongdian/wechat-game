@@ -3,7 +3,8 @@
  * 运行：node tools/test-engine.js
  */
 const { SnakeGame, MODES, SPECIALS, SPECIAL_RATE_MIN, SPECIAL_RATE_MAX,
-  NORMAL_SPAWN_SECONDS, MAX_NORMAL_BEANS, SPECIAL_LIFE_SECONDS } = require('../miniprogram/utils/snake-engine')
+  NORMAL_SPAWN_SECONDS, MAX_NORMAL_BEANS, SPECIAL_LIFE_SECONDS,
+  OBSTACLES, OBSTACLE_TYPES } = require('../miniprogram/utils/snake-engine')
 
 let pass = 0, fail = 0
 const failures = []
@@ -143,7 +144,8 @@ check('缩小豆已删除', !SPECIALS.shrink, Object.keys(SPECIALS).join('/'))
 section('需求变更验证')
 check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
 check('减速豆已回归特殊豆', !!SPECIALS.slow, JSON.stringify(SPECIALS.slow))
-check('特殊豆共 5 种（含磁铁豆）', Object.keys(SPECIALS).length === 5, Object.keys(SPECIALS).join('/'))
+check('原版 5 种特殊豆仍保留', ['slow','gold','double','packet','magnet'].every((k) => !!SPECIALS[k]),
+  Object.keys(SPECIALS).join('/'))
 check('特殊豆概率区间为 40%~50%', SPECIAL_RATE_MIN === 0.40 && SPECIAL_RATE_MAX === 0.50,
   `${SPECIAL_RATE_MIN}~${SPECIAL_RATE_MAX}`)
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
@@ -227,6 +229,89 @@ section('特殊豆概率实测')
   }
   const r = sp / N
   check('实测概率落在 40%~50% 区间', r >= 0.38 && r <= 0.52, `${(r * 100).toFixed(1)}%`)
+}
+
+section('设计文档新增内容（模式 / 道具 / 障碍）')
+{
+  // 模式
+  check('新增 3 种模式（障碍/无尽/摸鱼）',
+    MODES.OBSTACLE === 'obstacle' && MODES.ENDLESS === 'endless' && MODES.MOYU === 'moyu',
+    Object.values(MODES).join('/'))
+  // 特殊豆：5 原有 + 5 新增，缩小豆因与原版冲突未加入
+  check('特殊豆至少 5 种（验收要求）', Object.keys(SPECIALS).length >= 5,
+    Object.keys(SPECIALS).join('/'))
+  check('新增 5 种伪装道具（炸弹/文件/语音/表情/撤回）',
+    ['bomb', 'file', 'voice', 'emoji', 'recall'].every((k) => !!SPECIALS[k]),
+    ['bomb', 'file', 'voice', 'emoji', 'recall'].join('/'))
+  check('缩小豆未加入（与原版冲突，保留原版）', !SPECIALS.shrink)
+  check('新增道具基础分 3 分',
+    ['bomb', 'file', 'voice', 'emoji', 'recall'].every((k) => SPECIALS[k].points === 3))
+  // 障碍物
+  check('障碍物至少 3 种（验收要求）', OBSTACLE_TYPES.length >= 3, OBSTACLE_TYPES.join('/'))
+}
+{
+  // 障碍物：致命与非致命
+  const g = new SnakeGame({ specialFood: false })
+  g.start()
+  g.foods = []
+  g.obstacles = [{ x: g.snake[0].x + 1, y: g.snake[0].y, type: 'noread', left: 10 }]
+  g.tick()
+  check('撞「已读不回」死亡', g.state === 'over' && g.overReason === 'obstacle',
+    `${g.state}/${g.overReason}`)
+
+  const g2 = new SnakeGame({ specialFood: false })
+  g2.start(); g2.foods = []; g2.score = 20
+  g2.obstacles = [{ x: g2.snake[0].x + 1, y: g2.snake[0].y, type: 'typing', left: 10 }]
+  g2.tick()
+  check('撞「正在输入」扣 5 分且障碍消失', g2.score === 15 && g2.obstacles.length === 0,
+    `score=${g2.score} 障碍=${g2.obstacles.length}`)
+
+  // 障碍模式会生成障碍
+  const g3 = new SnakeGame({ mode: MODES.OBSTACLE })
+  g3.start()
+  const seen = new Set()
+  for (let i = 0; i < 200; i++) { g3.tickSecond(); g3.obstacles.forEach((o) => seen.add(o.type)) }
+  check('障碍模式会生成多种障碍物', seen.size >= 3, [...seen].join('/'))
+}
+{
+  // 新道具效果
+  const eat = (type) => {
+    const g = new SnakeGame({ specialFood: false })
+    g.start(); g.foods = []
+    const p = g.snake[0]
+    g.special = { x: p.x + 1, y: p.y, type, left: 8 }
+    return { g, r: g.tick() }
+  }
+  let t = eat('file')
+  // 吃豆本身 +1 节，文件道具再 +2 节 → 3+1+2 = 6
+  check('文件道具：额外 +2 节并减速', t.g.snake.length === 6 && t.g.hasEffect('slow'),
+    `len=${t.g.snake.length} effects=${JSON.stringify(t.g.effects)}`)
+  t = eat('voice')
+  check('语音道具：加速 3 秒', t.g.effects.speed === 3, JSON.stringify(t.g.effects))
+  t = eat('recall')
+  check('撤回道具：清除全部障碍', t.g.obstacles.length === 0, String(t.g.obstacles.length))
+  // 炸弹豆：清除周围障碍
+  const gb = new SnakeGame({ specialFood: false })
+  gb.start(); gb.foods = []
+  const hp = gb.snake[0]
+  gb.special = { x: hp.x + 1, y: hp.y, type: 'bomb', left: 8 }
+  gb.obstacles = [
+    { x: hp.x + 1, y: hp.y + 1, type: 'noread', left: 9 },
+    { x: 19, y: 19, type: 'noread', left: 9 }
+  ]
+  gb.tick()
+  check('炸弹豆：清除半径内障碍（远处保留）', gb.obstacles.length === 1,
+    `剩余 ${gb.obstacles.length}`)
+}
+{
+  // 摸鱼模式自动寻豆
+  const g = new SnakeGame({ mode: MODES.MOYU })
+  g.start()
+  for (let i = 0; i < 900; i++) { g.tick(); if (i % 20 === 0) g.tickSecond(); if (g.state !== 'running') break }
+  check('摸鱼模式自动吃豆（无需操作）', g.score > 5, `score=${g.score}`)
+  const ivMoyu = new SnakeGame({ mode: MODES.MOYU }).interval()
+  const ivClassic = new SnakeGame({ mode: MODES.CLASSIC }).interval()
+  check('摸鱼模式速度更快', ivMoyu < ivClassic, `${ivClassic}ms → ${ivMoyu}ms`)
 }
 
 section('分数段与连击（阈值 20/40/60/100，之后每 +100 一阶；倍率每阶 +1）')

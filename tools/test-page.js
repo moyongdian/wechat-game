@@ -111,6 +111,25 @@ section('游戏页：豆子显示在假消息之上（双画布分层）')
   check('豆子画布已初始化', src.includes('this.foodCtx') && src.includes("select('#foodCanvas')"))
 }
 
+section('游戏页：右下角 buff 显示')
+{
+  const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxss'), 'utf8')
+  check('存在右下角 buff 面板', wxml.includes('buff-panel') && wxml.includes('buffs'))
+  check('buff 面板定位在右下角', (() => {
+    const m = /\.buff-panel\s*\{([^}]*)\}/.exec(wxss)
+    return m && /right:/.test(m[1]) && /bottom:/.test(m[1])
+  })())
+  check('buff 面板 z-index 高于游戏层', (() => {
+    const b = /\.buff-panel\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    const snake = /\.canvas-snake\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    return b && snake && Number(b[1]) > Number(snake[1])
+  })())
+  check('buffs() 汇总各效果', src.includes('buffs()') &&
+    ['double','slow','speed','magnet','invincible'].every((k) => src.includes("'" + k + "'")))
+}
+
 section('游戏页：多豆渲染与红包提示')
 {
   const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')

@@ -37,7 +37,8 @@
         <view class="seg-item {{s.speed === item.key ? 'on' : ''}}" wx:for="{{speeds}}" wx:key="key"
               data-v="{{item.key}}" bindtap="onPickSpeed">{{item.label}}</view>
       </view>
-      <text class="tip">限时模式速度固定，经典/穿墙随分数加快</text>
+      <text class="tip">摸鱼=蛇自动寻豆免操作；障碍=随机聊天障碍物；无尽=速度持续加快</text>
+      <text class="tip">限时模式速度固定，其余模式随分数加快</text>
     </view>
     <view class="row">
       <text class="label">特殊豆</text>
@@ -45,7 +46,7 @@
         <view class="knob"></view>
       </view>
     </view>
-    <view class="tip">金豆 / 双倍 / 减速 / 磁铁 / 红包（形状与颜色各不相同）</view>
+    <view class="tip">金豆 / 双倍 / 减速 / 磁铁 / 红包 / 炸弹 / 文件 / 语音 / 表情 / 撤回</view>
         <view class="tip">磁铁豆：15 秒内自动吸附附近豆子</view>
     <view class="tip">分数达到 20 / 40 / 60 / 100 进入新阶段，之后每 +100 分再进一阶；每阶得分倍数 +1，蛇速同步变快</view>
   </view>

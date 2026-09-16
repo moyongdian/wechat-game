@@ -31,7 +31,7 @@ Page({
     bossMode: false,          // 老板键伪装中
     showSettings: false,
     remainSeconds: 0,
-    effectText: '',
+    buffs: [],            // 右下角 buff 列表
     bubbles: [],              // 装饰性聊天气泡
     bgStyle: 'background: #EDEDED',
     // 结算弹窗（伪装为“消息发送失败”）
@@ -83,7 +83,7 @@ Page({
     this.setData({
       chatName: settings.normalizeChatName(s.chatName),
       mode: s.mode,
-      modeLabel: { classic: '经典', wrap: '穿墙', timed: '限时' }[s.mode] || '经典',
+      modeLabel: { classic: '经典', wrap: '穿墙', timed: '限时', obstacle: '障碍', endless: '无尽', moyu: '摸鱼' }[s.mode] || '经典',
       bgStyle: s.background && s.background !== 'default'
         ? `background-image: url(${s.background}); background-size: cover;`
         : 'background: #EDEDED'
@@ -179,7 +179,7 @@ Page({
       this.game.tickSecond()
       this.setData({
         remainSeconds: this.game.remainSeconds,
-        effectText: this.effectText(),
+        buffs: this.buffs(),
         beanCount: (this.game.foods || []).length
       })
       if (this.game.state === 'over') this.onGameOver()
@@ -260,6 +260,7 @@ Page({
     this.prevSnake = g.snake.map((s2) => ({ x: s2.x, y: s2.y }))
     this.lastTickAt = Date.now()
     const r = g.tick()
+    if (r.hitObstacle) this.showToast('撞到「' + r.hitObstacle + '」' + (r.penalty || 0) + ' 分')
     // 立即转向会让相邻两节变为对角关系（位移 2 格），
     // 渲染时按位移长度分配时长，避免斜切穿过墙角
     this.moveDist = this.distBetween(this.prevSnake && this.prevSnake[0], g.snake[0])
@@ -279,7 +280,7 @@ Page({
                         magnet: '磁铁 15s', packet: '红包 +' + r.gained }[r.special]
         this.showToast(label)
       }
-      this.setData({ score: g.score, multiplier: g.multiplier(), effectText: this.effectText() })
+      this.setData({ score: g.score, multiplier: g.multiplier(), buffs: this.buffs() })
     }
     // 红包弹窗分数（说明书：获取时屏幕弹出红色的分数）
     // 红包豆「出现」即提示（不是吃掉才提示）
@@ -297,12 +298,18 @@ Page({
     this.draw()
   },
 
-  effectText() {
+  /** 当前生效的 buff 列表（用于右下角展示） */
+  buffs() {
     const g = this.game
-    const parts = []
-    if (g.hasEffect('double')) parts.push('×2 ' + g.effects.double + 's')
-    if (g.hasEffect('slow')) parts.push('减速 ' + g.effects.slow + 's')
-    return parts.join(' · ')
+    if (!g) return []
+    const list = []
+    const add = (key, label, seconds) => list.push({ key, label, seconds })
+    if (g.hasEffect('double')) add('double', '双倍', g.effects.double)
+    if (g.hasEffect('slow')) add('slow', '减速', g.effects.slow)
+    if (g.hasEffect('speed')) add('speed', '加速', g.effects.speed)
+    if (g.hasEffect('magnet')) add('magnet', '磁铁', g.effects.magnet)
+    if (g.invincible > 0) add('invincible', '无敌', g.invincible)
+    return list
   },
 
   onGameOver() {
@@ -464,9 +471,10 @@ Page({
     ctx.clearRect(0, 0, this.vw, this.vh)
     const ox = 0, oy = 0
     const g = this.game
+    for (const ob of (g.obstacles || [])) this.drawObstacle(this.foodCtx, ob, ox, oy, cell)
     const beans = (g.foods || []).slice()
     if (g.special) beans.push(g.special)
-    for (const b of beans) this.drawFood(ctx, b, ox, oy, cell)
+    for (const b of beans) this.drawFood(this.foodCtx, b, ox, oy, cell)
   },
 
   /**
@@ -555,6 +563,81 @@ Page({
       return
     }
 
+    // ── 炸弹豆：黑底 + 引线（清除周围障碍）──
+    if (type === 'bomb') {
+      const r = base * 1.25
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fillStyle = '#333333'; ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.1); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(cx + r * 0.5, cy - r * 0.7)
+      ctx.lineTo(cx + r * 0.95, cy - r * 1.15)
+      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = Math.max(2, cell * 0.1); ctx.stroke()
+      return
+    }
+
+    // ── 文件：灰色文件图标（蛇身 +2）──
+    if (type === 'file') {
+      const w = cell * 0.78, h = cell * 0.92
+      ctx.fillStyle = '#9AA0A6'
+      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.1)
+      ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.1); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = Math.max(1.5, cell * 0.07)
+      for (const dy of [-0.16, 0.02, 0.2]) {
+        ctx.beginPath()
+        ctx.moveTo(cx - w * 0.3, cy + h * dy)
+        ctx.lineTo(cx + w * 0.3, cy + h * dy)
+        ctx.stroke()
+      }
+      return
+    }
+
+    // ── 语音：绿色语音条（加速 3 秒）──
+    if (type === 'voice') {
+      const w = cell * 1.0, h = cell * 0.5
+      ctx.fillStyle = '#07C160'
+      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, h / 2)
+      ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.09); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      // 声波竖线
+      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = Math.max(1.5, cell * 0.08)
+      for (let i = -1; i <= 1; i++) {
+        const hh = cell * (0.14 - Math.abs(i) * 0.04)
+        ctx.beginPath()
+        ctx.moveTo(cx + i * cell * 0.2, cy - hh)
+        ctx.lineTo(cx + i * cell * 0.2, cy + hh)
+        ctx.stroke()
+      }
+      return
+    }
+
+    // ── 表情：小黄脸（随机效果）──
+    if (type === 'emoji') {
+      const r = base * 1.2
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fillStyle = '#FFD700'; ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.09); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      ctx.fillStyle = '#333333'
+      ctx.beginPath(); ctx.arc(cx - r * 0.35, cy - r * 0.2, r * 0.14, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx + r * 0.35, cy - r * 0.2, r * 0.14, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx, cy + r * 0.1, r * 0.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke()
+      return
+    }
+
+    // ── 撤回：灰色「撤回」气泡（清除全部障碍）──
+    if (type === 'recall') {
+      const w = cell * 1.3, h = cell * 0.7
+      ctx.fillStyle = '#C9CED8'
+      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.14)
+      ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.09); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      ctx.fillStyle = '#5A6272'
+      ctx.font = 'bold ' + Math.max(8, Math.round(cell * 0.34)) + 'px sans-serif'
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText('撤回', cx, cy + 1)
+      return
+    }
+
     // ── 圆形类：金豆 / 减速豆 / 普通豆（尺寸与颜色不同，统一白描边）──
     const spec = {
       gold:   { r: base * 1.35, fill: '#E6A700' },
@@ -569,6 +652,67 @@ Page({
     ctx.lineWidth = ringW
     ctx.strokeStyle = '#FFFFFF'
     ctx.stroke()
+  },
+
+  /**
+   * 障碍物绘制（设计文档 §3.3）：全部伪装成聊天元素
+   */
+  drawObstacle(ctx, ob, ox, oy, cell) {
+    if (!ob) return
+    const cx = ox + ob.x * cell + cell / 2
+    const cy = oy + ob.y * cell + cell / 2
+    const label = { noread: '已读', typing: '···', emoji: '', filetx: '', dnd: '' }[ob.type] || ''
+
+    // 文件传输：长条文件（占多格）
+    if (ob.type === 'filetx') {
+      const w = cell * 1.9, h = cell * 0.62
+      ctx.fillStyle = 'rgba(154,160,166,0.85)'
+      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.12)
+      ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.08); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = 'bold ' + Math.max(8, Math.round(cell * 0.3)) + 'px sans-serif'
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText('文件', cx, cy + 1)
+      return
+    }
+
+    // 免打扰：灰色月亮
+    if (ob.type === 'dnd') {
+      const r = cell * 0.5
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(201,206,216,0.55)'; ctx.fill()
+      ctx.beginPath(); ctx.arc(cx + r * 0.35, cy - r * 0.2, r * 0.85, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(237,237,237,1)'; ctx.fill()
+      return
+    }
+
+    // 表情包：方形表情（撞到 -10 分）
+    if (ob.type === 'emoji') {
+      const d = cell * 0.9
+      ctx.fillStyle = '#FFD700'
+      this.roundRect(ctx, cx - d / 2, cy - d / 2, d, d, cell * 0.16)
+      ctx.fill()
+      ctx.lineWidth = Math.max(2, cell * 0.08); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+      ctx.fillStyle = '#333333'
+      ctx.beginPath(); ctx.arc(cx - d * 0.18, cy - d * 0.1, d * 0.08, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx + d * 0.18, cy - d * 0.1, d * 0.08, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx, cy + d * 0.05, d * 0.24, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke()
+      return
+    }
+
+    // 已读不回 / 正在输入：灰色气泡
+    const w = cell * 1.15, h = cell * 0.68
+    ctx.fillStyle = ob.type === 'noread' ? 'rgba(140,148,163,0.85)' : 'rgba(180,188,200,0.85)'
+    this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.14)
+    ctx.fill()
+    ctx.lineWidth = Math.max(2, cell * 0.08); ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
+    if (label) {
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = 'bold ' + Math.max(8, Math.round(cell * 0.32)) + 'px sans-serif'
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText(label, cx, cy + 1)
+    }
   },
 
   roundRect(ctx, x, y, w, h, r) {

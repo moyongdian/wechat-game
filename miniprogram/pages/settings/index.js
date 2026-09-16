@@ -11,9 +11,12 @@ const SPEEDS = [
   { key: 'fast', label: '快' }
 ]
 const MODES = [
-  { key: 'classic', label: '经典' },
-  { key: 'wrap', label: '穿墙' },
-  { key: 'timed', label: '限时' }
+  { key: 'classic',  label: '经典' },   // 撞墙死、撞自己死
+  { key: 'wrap',     label: '穿墙' },   // 边界互通
+  { key: 'timed',    label: '限时' },   // 60 秒冲分
+  { key: 'obstacle', label: '障碍' },   // 随机聊天障碍物
+  { key: 'endless',  label: '无尽' },   // 速度持续加快
+  { key: 'moyu',     label: '摸鱼' }    // 蛇自动寻豆，无需操作
 ]
 const RATES = [
   { key: 'low', label: '低' },
