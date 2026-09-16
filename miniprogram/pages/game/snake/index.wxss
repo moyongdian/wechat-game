@@ -119,7 +119,16 @@ page {
   width: 100%;
   height: 100%;
   display: block;
-  z-index: 1;          /* 墙与蛇：在聊天消息之上 */
+  z-index: 1;
+}
+/* 蛇层：提到最高，确保蛇身不被豆子或假消息遮挡 */
+.canvas-snake {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 4;          /* 高于豆子层(3)与聊天层(2) */
 }
 /* 豆子层：放在聊天层(2)之上，避免被假消息遮挡
    注意 z-index 只对定位元素生效，必须显式声明 position: absolute */
@@ -464,7 +473,7 @@ page {
   left: 50%; top: 30%;
   transform: translate(-50%, -50%);
   color: rgba(250, 81, 81, 0.55);   /* 淡红色 */
-  font-size: 30rpx;                 /* 与中间设置键同字号 */
+  font-size: 60rpx;                 /* 加大一倍：原 30rpx */
   font-weight: 600;
   letter-spacing: 2rpx;
   pointer-events: none;

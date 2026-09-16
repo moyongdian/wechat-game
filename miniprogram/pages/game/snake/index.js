@@ -98,6 +98,7 @@ Page({
     try { this.audioEat && this.audioEat.destroy() } catch (e) {}
     try { this.audioSpecial && this.audioSpecial.destroy() } catch (e) {}
     if (this.packetTimer) clearTimeout(this.packetTimer)
+    if (this.bannerTimer) clearTimeout(this.bannerTimer)
   },
 
   /* ================= Canvas 初始化 ================= */
@@ -151,7 +152,9 @@ Page({
       specialFood: s.specialFood,
       timedSeconds: s.timedSeconds
     })
+    this.packetOnField = false
     this.setData({
+      packetBanner: false,
       score: 0,
       multiplier: 1,
       best: settings.getBest(s.mode),
@@ -181,6 +184,22 @@ Page({
       })
       if (this.game.state === 'over') this.onGameOver()
     }, 1000)
+  },
+
+  /**
+   * 监听红包豆出现：场上从「无红包豆」变为「有红包豆」时弹出「红包来啦」
+   * （需求：红包豆一出现就提示，而不是吃掉才提示）
+   */
+  watchPacketSpawn() {
+    const g = this.game
+    if (!g) return
+    const hasPacket = g.allBeans().some((b) => b.type === 'packet')
+    if (hasPacket && !this.packetOnField) {
+      this.setData({ packetBanner: true })
+      if (this.bannerTimer) clearTimeout(this.bannerTimer)
+      this.bannerTimer = setTimeout(() => this.setData({ packetBanner: false }), 1800)
+    }
+    this.packetOnField = hasPacket
   },
 
   /** 两点间曼哈顿距离（用于插值时长：直行 1，对角 2） */
@@ -263,13 +282,16 @@ Page({
       this.setData({ score: g.score, multiplier: g.multiplier(), effectText: this.effectText() })
     }
     // 红包弹窗分数（说明书：获取时屏幕弹出红色的分数）
+    // 红包豆「出现」即提示（不是吃掉才提示）
+    this.watchPacketSpawn()
+
+    // 吃掉红包豆：显示加大的得分数字，停留更久
     if (g.packetPopup) {
       const txt = '+' + g.packetPopup
       g.packetPopup = 0
-      // 红包：先弹出「红包来啦」提示，再显示更大的得分数字，停留更久
-      this.setData({ packetBanner: true, packetText: txt })
-      setTimeout(() => this.setData({ packetBanner: false }), 1600)
+      this.setData({ packetText: txt })
       if (this.packetTimer) clearTimeout(this.packetTimer)
+    if (this.bannerTimer) clearTimeout(this.bannerTimer)
       this.packetTimer = setTimeout(() => this.setData({ packetText: '' }), 2600)
     }
     this.draw()

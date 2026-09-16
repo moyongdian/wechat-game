@@ -89,6 +89,16 @@ section('游戏页：豆子显示在假消息之上（双画布分层）')
   })())
   check('豆子层声明了 position（否则 z-index 无效）',
     /\.canvas-food\s*\{[^}]*position:\s*absolute/.test(wxss))
+  // 蛇层提到最高：高于豆子层与聊天层（需求：蛇身图层最高）
+  check('蛇层 z-index 高于豆子层与聊天层', (() => {
+    const snake = /\.canvas-snake\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    const food = /\.canvas-food\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    const chat = /\.chat-scroll\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    return snake && food && chat &&
+      Number(snake[1]) > Number(food[1]) && Number(snake[1]) > Number(chat[1])
+  })())
+  check('蛇画布已绑定 canvas-snake 类', wxml.includes('class="canvas canvas-snake"') &&
+    src.includes("select('#gameCanvas')"))
   check('渲染循环同时绘制两层', src.includes('this.drawFoodLayer()'))
   check('豆子画布已初始化', src.includes('this.foodCtx') && src.includes("select('#foodCanvas')"))
 }
@@ -101,11 +111,14 @@ section('游戏页：多豆渲染与红包提示')
   check('渲染场上所有普通豆', src.includes('(g.foods || [])'))
   check('渲染特殊豆', src.includes('if (g.special) beans.push(g.special)'))
   check('存在「红包来啦」提示', wxml.includes('packet-banner') && wxml.includes('红包来啦'))
-  check('「红包来啦」字号与设置键一致（30rpx）', (() => {
+  check('「红包来啦」字号加大一倍（60rpx）', (() => {
     const m = /\.packet-banner\s*\{[^}]*font-size:\s*(\d+)rpx/.exec(wxss)
-    const k = /\.center-text\s*\{[^}]*font-size:\s*(\d+)rpx/.exec(wxss)
-    return m && k && m[1] === k[1]
+    return m && Number(m[1]) === 60
   })())
+  check('「红包来啦」在红包豆出现时触发（非吃掉时）',
+    src.includes('watchPacketSpawn') &&
+    /watchPacketSpawn\(\) \{[\s\S]*?type === 'packet'/.test(src) &&
+    src.indexOf('this.watchPacketSpawn()') < src.indexOf('if (g.packetPopup)'))
   check('「红包来啦」为淡红色', /packet-banner[^}]*rgba\(250,\s*81,\s*81,\s*0\.\d+\)/.test(wxss))
   check('红包得分的字号已加大（≥100rpx）', (() => {
     const m = /\.packet\s*\{[^}]*font-size:\s*(\d+)rpx/.exec(wxss)

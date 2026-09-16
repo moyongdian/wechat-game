@@ -30,7 +30,7 @@
   <!-- 消息区：游戏画布（底层） + 聊天消息流（滚动层） -->
   <view class="msg-area" style="{{bgStyle}}">
     <!-- 游戏画布：墙体 + 蛇（在下层，聊天消息之上） -->
-    <canvas type="2d" id="gameCanvas" class="canvas"></canvas>
+    <canvas type="2d" id="gameCanvas" class="canvas canvas-snake"></canvas>
     <!-- 豆子画布：单独一层，确保豆子显示在聊天消息之上，不被遮挡 -->
     <canvas type="2d" id="foodCanvas" class="canvas canvas-food"></canvas>
 
@@ -84,7 +84,7 @@
       <text class="hint-text">已暂停</text>
     </view>
 
-    <!-- 红包来啦（淡红色，字号与设置键一致 30rpx） -->
+    <!-- 红包来啦：红包豆一出现即提示（淡红色，字号 60rpx） -->
     <view class="packet-banner" wx:if="{{packetBanner}}">红包来啦</view>
     <!-- 红包得分（字号加大、停留更久） -->
     <view class="packet" wx:if="{{packetText}}">{{packetText}}</view>
