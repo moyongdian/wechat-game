@@ -54,6 +54,12 @@ page {
   align-items: baseline;
   margin-left: 8rpx;
 }
+.nav-combo {
+  margin-left: 10rpx;
+  font-size: 22rpx;
+  color: #F59E0B;
+  font-weight: 600;
+}
 .nav-score-val {
   font-size: 36rpx;
   font-weight: 600;
@@ -152,7 +158,8 @@ page {
   border-radius: 10rpx;
   flex-shrink: 0;
   border: 1rpx solid var(--line-strong);
-  background: #E5E5E5;
+  background: #D8D8D8;      /* 图片未加载时也占位可见 */
+  display: block;
 }
 
 .msg-bubble {

@@ -10,6 +10,7 @@
         </view>
         <view class="nav-score">
           <text class="nav-score-val">{{score}}</text>
+          <text class="nav-combo" wx:if="{{multiplier > 1}}">×{{multiplier}}连击</text>
         </view>
       </view>
       <view class="nav-title" bindtap="onTitleTap">

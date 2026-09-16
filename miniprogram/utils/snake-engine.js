@@ -24,7 +24,6 @@ const SPECIALS = {
   gold:    { label: '金豆',   points: 5,  color: '#FFD700', duration: 0 },
   double:  { label: '双倍豆', points: 1,  color: '#FFFFFF', duration: 20 },
   shield:  { label: '护盾豆', points: 3,  color: '#FFFFFF', duration: 0 },
-  shrink:  { label: '缩小豆', points: 3,  color: '#FFFFFF', duration: 0 },
   packet:  { label: '红包',   points: 0,  color: '#FA5151', duration: 0 } // 分数随机 10-50
 }
 
@@ -32,6 +31,18 @@ const SPECIAL_KEYS = Object.keys(SPECIALS)
 
 /** 护盾抵挡一次伤害后的无敌时长（秒） */
 const INVINCIBLE_SECONDS = 3
+
+/**
+ * 分数段：达到该分数进入下一阶段
+ *  - 每个阶段蛇速提升一档（STAGE_SPEED_STEP 毫秒）
+ *  - 每进入一个阶段，连击倍率 +1（吃豆得分翻倍）
+ */
+const STAGE_THRESHOLDS = [50, 100, 200, 400]
+const STAGE_SPEED_STEP = 6      // 每阶段减少的移动间隔（毫秒）
+const SCORE_SPEED_STEP = 2      // 每 10 分减少的移动间隔（毫秒）
+const SCORE_SPEED_UNIT = 10
+const MIN_INTERVAL = 60         // 移动间隔下限
+const COMBO_DOUBLE = 2          // 每阶段连击倍率倍数
 
 /** 特殊豆出现概率（说明书建议 20%-30%） */
 // 特殊豆基础概率 25%，按需求再提高 10%（相对）→ 27.5%
@@ -71,6 +82,7 @@ class SnakeGame {
     this.dirName = 'right'
     this.pendingDir = null     // 每 tick 只接受一次转向
     this.score = 0
+    this.comboCount = 0        // 累计吃豆数（达到分数段即翻倍）
     this.alive = true
     this.state = 'ready'       // ready | running | paused | over
     this.shield = 0            // 护盾次数（抵挡一次伤害）
@@ -262,30 +274,43 @@ class SnakeGame {
       if (type === 'double') this.effects.double = (this.effects.double || 0) + SPECIALS.double.duration
       if (type === 'slow')   this.effects.slow   = (this.effects.slow   || 0) + SPECIALS.slow.duration
       if (type === 'shield') this.shield += 1
-      if (type === 'shrink') {
-        // 缩短 2 节，最低保留 3 节
-        const target = Math.max(3, this.snake.length - 2)
-        this.snake = this.snake.slice(0, target)
-      }
     }
 
     // 双倍豆：吃豆得分翻倍
     if (this.hasEffect('double')) gained *= 2
 
+    // 连击：每达到一个分数段，吃豆得分再翻倍
+    const mul = Math.pow(COMBO_DOUBLE, this.stage())
+    if (mul > 1) gained *= mul
+
     this.score += gained
+    this.comboCount += 1
     this.spawnFood()
-    return { gained, special }
+    return { gained, special, stage: this.stage(), multiplier: mul }
   }
 
-  /** 当前移动间隔（含效果影响） */
+  /** 当前所处分数段（0 起） */
+  stage() {
+    let n = 0
+    for (const t of STAGE_THRESHOLDS) if (this.score >= t) n++
+    return n
+  }
+
+  /** 当前连击倍率（1 倍起，每阶段翻倍） */
+  multiplier() {
+    return Math.pow(COMBO_DOUBLE, this.stage())
+  }
+
+  /** 当前移动间隔（含分数段加速与特殊豆效果） */
   interval() {
     const base = { slow: 280, mid: 160, fast: 110 }[this.speed] || 160
-    if (this.mode === MODES.TIMED) {
-      // 限时模式固定中速
-      return base
-    }
-    let iv = Math.max(70, base - Math.floor(this.score / 5) * 12)
-    if (this.hasEffect('slow')) iv = Math.min(360, Math.round(iv * 1.6))
+    if (this.mode === MODES.TIMED) return base   // 限时模式固定中速
+
+    // 随分数平滑加快（封顶 40ms）+ 每个分数段再提速一档
+    const scoreAccel = Math.min(40, Math.floor(this.score / SCORE_SPEED_UNIT) * SCORE_SPEED_STEP)
+    let iv = base - scoreAccel - this.stage() * STAGE_SPEED_STEP
+    iv = Math.max(MIN_INTERVAL, iv)
+    if (this.hasEffect('slow')) iv = Math.min(380, Math.round(iv * 1.6))
     return iv
   }
 
@@ -302,6 +327,7 @@ class SnakeGame {
       cols: this.cols, rows: this.rows,
       snake: this.snake, food: this.food,
       score: this.score, state: this.state, alive: this.alive,
+      stage: this.stage(), multiplier: this.multiplier(),
       shield: this.shield, invincible: this.invincible, effects: this.effects,
       remainSeconds: this.remainSeconds,
       overReason: this.overReason,
@@ -310,4 +336,4 @@ class SnakeGame {
   }
 }
 
-module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MID, INVINCIBLE_SECONDS }
+module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MID, INVINCIBLE_SECONDS, STAGE_THRESHOLDS }

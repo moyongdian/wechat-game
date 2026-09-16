@@ -138,6 +138,7 @@ Page({
     })
     this.setData({
       score: 0,
+      multiplier: 1,
       best: settings.getBest(s.mode),
       remainSeconds: this.game.remainSeconds,
       over: false, paused: false, running: false
@@ -189,7 +190,7 @@ Page({
                         shield: '护盾 +1', shrink: '蛇身 -2', packet: '红包 +' + r.gained }[r.special]
         this.showToast(label)
       }
-      this.setData({ score: g.score, shield: g.shield, effectText: this.effectText() })
+      this.setData({ score: g.score, shield: g.shield, multiplier: g.multiplier(), effectText: this.effectText() })
     }
     // 红包弹窗分数（说明书：获取时屏幕弹出红色的分数）
     if (g.packetPopup) {
@@ -257,30 +258,50 @@ Page({
     // 豆子：各类特殊豆在形状/大小/颜色上区分（见 drawFood）
     this.drawFood(ctx, g.food, ox, oy, cell)
 
-    // 蛇：椭圆连体渲染（首尾渐细 + 颜色渐变 → 连成一条蛇身，不再是断开的方块）
+    // 蛇：用「粗圆头线段」连接各节中心 → 无论直行还是拐弯都完全无缝
+    // （若只画圆，斜向相邻的圆心距为 1.414 格 > 两半径和，拐弯处必然有缝）
     const n = g.snake.length
     const inv = (g.invincible || 0) > 0
-    const pulse = inv ? 1 + 0.06 * Math.sin(Date.now() / 130) : 1
-    for (let i = n - 1; i >= 0; i--) {
-      const seg = g.snake[i]
-      const cx = ox + seg.x * cell + cell / 2
-      const cy = oy + seg.y * cell + cell / 2
-      const t = n > 1 ? i / (n - 1) : 0          // 0=蛇头 1=蛇尾
-      const w = cell * (0.50 - 0.10 * t) * pulse
-      const h = cell * (0.46 - 0.10 * t) * pulse
-      ctx.beginPath()
-      ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2)
-      if (i === 0) {
-        ctx.fillStyle = inv ? '#22D3EE' : '#06AD56'
-      } else if (inv) {
-        ctx.fillStyle = `rgba(34, 211, 238, ${0.95 - 0.35 * t})`
-      } else {
-        // 亮绿 → 深绿渐变
-        const k = 1 - t
-        ctx.fillStyle = `rgb(${Math.round(7 + 30 * (1 - k))}, ${Math.round(150 + 55 * k)}, ${Math.round(80 + 20 * k)})`
-      }
-      ctx.fill()
+    const pulse = inv ? 1 + 0.04 * Math.sin(Date.now() / 130) : 1
+    const c = (i) => ({
+      x: ox + g.snake[i].x * cell + cell / 2,
+      y: oy + g.snake[i].y * cell + cell / 2
+    })
+
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    // 先画整条身子的连接段（深绿描边感），再画主色，形成细描边
+    ctx.lineWidth = cell * 0.94 * pulse
+    ctx.strokeStyle = inv ? 'rgba(34, 211, 238, 0.55)' : '#05A050'
+    ctx.beginPath()
+    for (let i = 0; i < n - 1; i++) {
+      const a = c(i), b = c(i + 1)
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
     }
+    if (n === 1) { const a = c(0); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x, a.y) }
+    ctx.stroke()
+
+    // 主色：稍细，盖在描边之上
+    ctx.lineWidth = cell * 0.78 * pulse
+    ctx.strokeStyle = inv ? '#22D3EE' : '#07C160'
+    ctx.beginPath()
+    for (let i = 0; i < n - 1; i++) {
+      const a = c(i), b = c(i + 1)
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
+    }
+    ctx.stroke()
+
+    // 蛇头：略深，稍大
+    const head = c(0)
+    ctx.beginPath()
+    ctx.arc(head.x, head.y, cell * 0.44 * pulse, 0, Math.PI * 2)
+    ctx.fillStyle = inv ? '#22D3EE' : '#06AD56'
+    ctx.fill()
+
+
     // 无敌光环
     if (inv) {
       ctx.beginPath()
@@ -303,31 +324,44 @@ Page({
    *  - 缩小豆：白色小圆（最小）
    *  - 红包：红色圆角矩形（最大）+ 金边与金色封口
    */
+  /**
+   * 画豆子：种类靠「形状 + 颜色」区分，尺寸整体加大，统一白色描边
+   *  - 普通豆：黑色圆
+   *  - 金豆：金色圆（大）
+   *  - 减速豆：蓝色圆
+   *  - 双倍豆：白色方块 + 「×2」
+   *  - 护盾豆：白色盾牌形
+   *  - 红包：红色圆角矩形（最大）
+   */
   drawFood(ctx, food, ox, oy, cell) {
     if (!food) return
     const cx = ox + food.x * cell + cell / 2
     const cy = oy + food.y * cell + cell / 2
-    const base = cell * 0.26
+    const base = cell * 0.32            // 基础半径（整体加大）
     const type = food.type || 'normal'
+    const ringW = Math.max(2, cell * 0.11)   // 统一的描边宽度
 
     // ── 红包：最大 ──
     if (type === 'packet') {
-      const w = cell * 0.88, h = cell * 1.04
+      const w = cell * 1.0, h = cell * 1.16
       ctx.fillStyle = '#FA5151'
-      ctx.strokeStyle = '#FFD700'
-      ctx.lineWidth = Math.max(1.5, cell * 0.07)
-      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.16)
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.lineWidth = ringW
+      this.roundRect(ctx, cx - w / 2, cy - h / 2, w, h, cell * 0.18)
       ctx.fill(); ctx.stroke()
       ctx.beginPath()
       ctx.arc(cx, cy - h * 0.14, w * 0.2, 0, Math.PI * 2)
       ctx.fillStyle = '#FFD700'
       ctx.fill()
+      ctx.lineWidth = Math.max(1.5, cell * 0.07)
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.stroke()
       return
     }
 
     // ── 护盾豆：盾牌形 ──
     if (type === 'shield') {
-      const w = cell * 0.64, h = cell * 0.76
+      const w = cell * 0.74, h = cell * 0.86
       ctx.beginPath()
       ctx.moveTo(cx - w / 2, cy - h / 2)
       ctx.lineTo(cx + w / 2, cy - h / 2)
@@ -337,7 +371,7 @@ Page({
       ctx.closePath()
       ctx.fillStyle = '#FFFFFF'
       ctx.fill()
-      ctx.lineWidth = Math.max(1.5, cell * 0.09)
+      ctx.lineWidth = ringW
       ctx.strokeStyle = '#4C8DF6'
       ctx.stroke()
       return
@@ -345,34 +379,33 @@ Page({
 
     // ── 双倍豆：方块 + ×2 ──
     if (type === 'double') {
-      const d = cell * 0.56
+      const d = cell * 0.66
       ctx.fillStyle = '#FFFFFF'
       ctx.strokeStyle = '#F59E0B'
-      ctx.lineWidth = Math.max(1.5, cell * 0.08)
-      this.roundRect(ctx, cx - d / 2, cy - d / 2, d, d, cell * 0.1)
+      ctx.lineWidth = ringW
+      this.roundRect(ctx, cx - d / 2, cy - d / 2, d, d, cell * 0.12)
       ctx.fill(); ctx.stroke()
       ctx.fillStyle = '#F59E0B'
-      ctx.font = 'bold ' + Math.max(8, Math.round(cell * 0.4)) + 'px sans-serif'
+      ctx.font = 'bold ' + Math.max(9, Math.round(cell * 0.46)) + 'px sans-serif'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText('×2', cx, cy + 1)
       return
     }
 
-    // ── 圆形类：金豆 / 减速豆 / 缩小豆 / 普通豆（大小与颜色不同）──
+    // ── 圆形类：金豆 / 减速豆 / 普通豆（尺寸与颜色不同，统一白描边）──
     const spec = {
-      gold:   { r: base * 1.5,  fill: '#FFD700', ring: '#B8860B' },
-      slow:   { r: base * 1.25, fill: '#1989FA', ring: '#FFFFFF' },
-      shrink: { r: base * 0.85, fill: '#FFFFFF', ring: '#7A7E83' },
-      normal: { r: base,        fill: '#000000', ring: '#FFFFFF' }
-    }[type] || { r: base, fill: '#000000', ring: '#FFFFFF' }
+      gold:   { r: base * 1.35, fill: '#FFD700' },
+      slow:   { r: base * 1.15, fill: '#1989FA' },
+      normal: { r: base,        fill: '#000000' }
+    }[type] || { r: base, fill: '#000000' }
 
     ctx.beginPath()
     ctx.arc(cx, cy, spec.r, 0, Math.PI * 2)
     ctx.fillStyle = spec.fill
     ctx.fill()
-    ctx.lineWidth = Math.max(1.5, cell * 0.09)
-    ctx.strokeStyle = spec.ring
+    ctx.lineWidth = ringW
+    ctx.strokeStyle = '#FFFFFF'
     ctx.stroke()
   },
 
@@ -397,7 +430,7 @@ Page({
 
     // 初始铺满一段搞笑对话
     const arr = []
-    const seed = jokes.conversation(3)
+    const seed = jokes.conversation(2)
     seed.forEach((m) => arr.push(this.makeMessage(arr.length, m)))
     this.setData({ messages: arr, scrollTo: 'msg-' + arr[arr.length - 1].id })
     this.startChatTimer()
@@ -408,7 +441,9 @@ Page({
     const id = ++this.msgSeq
     const self = preset ? !!preset.self : Math.random() > 0.5
     const text = preset ? preset.text : fake.pick(fake.BUBBLES)
-    return { id, seq, text, self, avatar: self ? AVATAR_ME : AVATAR_OTHER }
+    // 头像必须两侧都有：自己在右用蓝色头像，对方在左用绿色头像
+    const avatar = self ? AVATAR_ME : AVATAR_OTHER
+    return { id, seq, text, self, avatar }
   },
 
   /** 定时追加新消息并向下滚动（像真实聊天持续收到消息） */
@@ -416,7 +451,8 @@ Page({
     this.stopChatTimer()
     const s = settings.get()
     if (!s.fakeMsg) return
-    const iv = s.fakeMsgRate === 'high' ? 2200 : s.fakeMsgRate === 'mid' ? 3800 : 6000
+    // 频率整体降低（间隔加长）
+    const iv = s.fakeMsgRate === 'high' ? 4000 : s.fakeMsgRate === 'mid' ? 6000 : 9000
     this.chatTimer = setInterval(() => {
       if (this.data.bossMode) return
       const list = (this.data.messages || []).slice()

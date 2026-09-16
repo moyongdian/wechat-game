@@ -149,30 +149,46 @@ check('无敌期间撞墙不死亡', g.state === 'running', `state=${g.state}`)
 for (let i = 0; i < INVINCIBLE_SECONDS; i++) g.tickSecond()
 check('无敌时间结束后归零', g.invincible === 0, `invincible=${g.invincible}`)
 
-g = makeGame(); g.start()
-// 先把蛇拉长到 6 节
-g.snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }, { x: 5, y: 10 }]
-g.dir = { x: 1, y: 0 }; g.dirName = 'right'
-g.food = { x: 11, y: 10, type: 'shrink' }
-g.tick()
-check('缩小豆蛇身减 2 节', g.snake.length === 5, `6 → ${g.snake.length}`)
-
-g = makeGame(); g.start()
-g.snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }]
-g.dir = { x: 1, y: 0 }; g.dirName = 'right'
-g.food = { x: 11, y: 10, type: 'shrink' }
-g.tick()
-check('缩小豆最低保留 3 节', g.snake.length === 3, `实际 ${g.snake.length}`)
+check('缩小豆已删除', !SPECIALS.shrink, Object.keys(SPECIALS).join('/'))
 
 /* ---------- 速度 ---------- */
 section('需求变更验证')
 check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
 check('减速豆已回归特殊豆', !!SPECIALS.slow, JSON.stringify(SPECIALS.slow))
-check('特殊豆共 6 种', Object.keys(SPECIALS).length === 6, Object.keys(SPECIALS).join('/'))
+check('特殊豆共 5 种（已删加速豆与缩小豆）', Object.keys(SPECIALS).length === 5, Object.keys(SPECIALS).join('/'))
 check('特殊豆概率提高 10%（0.25 → 0.275）', Math.abs(SPECIAL_RATE_MID - 0.275) < 1e-9, String(SPECIAL_RATE_MID))
 check('护盾无敌时长为 3 秒', INVINCIBLE_SECONDS === 3, String(INVINCIBLE_SECONDS))
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
 check('慢速已降低（间隔 ≥ 280ms）', slowG.interval() >= 280, slowG.interval() + 'ms')
+
+section('分数段与连击')
+const sg = new SnakeGame({ specialFood: false, speed: 'mid' })
+sg.start()
+check('初始阶段 0、倍率 ×1', sg.stage() === 0 && sg.multiplier() === 1,
+  `stage=${sg.stage()} mul=${sg.multiplier()}`)
+sg.score = 50
+check('50 分进入阶段 1（倍率 ×2）', sg.stage() === 1 && sg.multiplier() === 2,
+  `stage=${sg.stage()} mul=${sg.multiplier()}`)
+sg.score = 100
+check('100 分进入阶段 2（倍率 ×4）', sg.stage() === 2 && sg.multiplier() === 4,
+  `stage=${sg.stage()} mul=${sg.multiplier()}`)
+sg.score = 200
+check('200 分进入阶段 3（倍率 ×8）', sg.stage() === 3 && sg.multiplier() === 8,
+  `stage=${sg.stage()} mul=${sg.multiplier()}`)
+sg.score = 400
+check('400 分进入阶段 4（倍率 ×16）', sg.stage() === 4 && sg.multiplier() === 16,
+  `stage=${sg.stage()} mul=${sg.multiplier()}`)
+// 速度随阶段递增（间隔变小）
+const iv0 = new SnakeGame({ specialFood: false }).interval()
+const iv4 = sg.interval()
+check('每个阶段速度相应增加', iv4 < iv0, `${iv0}ms → ${iv4}ms`)
+// 连击：阶段 1 时吃普通豆得 2 分
+const cg = new SnakeGame({ specialFood: false })
+cg.start(); cg.score = 50
+cg.food = { x: cg.snake[0].x + 1, y: cg.snake[0].y, type: 'normal' }
+const cb = cg.score
+cg.tick()
+check('连击生效：阶段 1 吃普通豆 +2 分', cg.score - cb === 2, `+${cg.score - cb}`)
 
 section('速度规则')
 const gm = makeGame({ speed: 'mid' })
