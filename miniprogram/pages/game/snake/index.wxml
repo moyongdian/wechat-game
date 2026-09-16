@@ -85,8 +85,26 @@
     <view class="toast" wx:if="{{toastText}}">{{toastText}}</view>
   </view>
 
-  <!-- 底部操作栏：十字方向键，中心为设置 -->
-  <view class="actionbar" style="padding-bottom:{{safeBottom}}px">
+  <!-- 暂停时：底部换成仿微信聊天输入栏（点击可继续游戏） -->
+  <view class="inputbar" wx:if="{{paused && !over}}" style="padding-bottom:{{safeBottom}}px"
+        bindtap="onResumeFromBar">
+    <view class="ib-row">
+      <view class="ib-ico ib-voice">
+        <view class="voice-arc"></view>
+      </view>
+      <view class="ib-input"><text class="ib-ph">发消息…</text></view>
+      <view class="ib-ico ib-emoji">
+        <view class="emoji-face"><view class="emoji-eye"></view><view class="emoji-eye"></view></view>
+      </view>
+      <view class="ib-ico ib-plus">
+        <view class="plus-ring"></view>
+      </view>
+    </view>
+    <text class="ib-hint">已暂停 · 点击任意位置继续</text>
+  </view>
+
+  <!-- 游戏中：底部十字方向键 + 中心设置 -->
+  <view class="actionbar" wx:if="{{!paused || over}}" style="padding-bottom:{{safeBottom}}px">
     <view class="pad">
       <view class="pad-row">
         <view class="dbtn" data-dir="up" bindtap="onDir" hover-class="dbtn-hover">

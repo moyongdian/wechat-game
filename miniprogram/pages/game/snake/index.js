@@ -5,6 +5,7 @@
 const { SnakeGame, MODES } = require('../../../utils/snake-engine')
 const settings = require('../../../utils/settings')
 const fake = require('../../../utils/fake')
+const jokes = require('../../../utils/jokes')
 const util = require('../../../utils/util')
 
 const COLS = 20
@@ -112,6 +113,7 @@ Page({
 
       this.canvas = canvas
       this.ctx = ctx
+      this.dpr = dpr
       this.vw = width
       this.vh = height
       this.cell = Math.min(width / COLS, height / ROWS)
@@ -178,7 +180,7 @@ Page({
       const s = settings.get()
       util.vibrate(s.vibrate)
       if (r.special) {
-        const label = { gold: '金豆 +5', double: '双倍得分 20s', slow: '减速 8s',
+        const label = { gold: '金豆 +5', double: '双倍得分 20s', pace: '减速 8s',
                         shield: '护盾 +1', shrink: '蛇身 -2', packet: '红包 +' + r.gained }[r.special]
         this.showToast(label)
       }
@@ -240,35 +242,15 @@ Page({
     const ox = (this.vw - cell * COLS) / 2
     const oy = (this.vh - cell * ROWS) / 2
 
-    // 墙体边框：黑色，标出蛇可活动的范围（穿墙模式下蛇可穿越此线）
-    ctx.strokeStyle = '#000000'
-    ctx.lineWidth = Math.max(2, cell * 0.12)
+    // 墙体：与界面边框同色同宽（界面边框 2rpx）
+    // 墙宽与界面边框一致：2rpx ≈ 1px（ctx 已按 dpr 缩放，无需再乘）
+    ctx.strokeStyle = '#D6D6D6'
+    ctx.lineWidth = 1
     ctx.strokeRect(ox, oy, cell * COLS, cell * ROWS)
 
-    // 豆子
-    if (g.food) {
-      const fx = ox + g.food.x * cell + cell / 2
-      const fy = oy + g.food.y * cell + cell / 2
-      const r = cell * 0.28
-      ctx.beginPath()
-      ctx.arc(fx, fy, r, 0, Math.PI * 2)
-      ctx.fillStyle = '#000000'          // 豆子黑色
-      ctx.fill()
-      ctx.lineWidth = Math.max(1, cell * 0.07)
-      ctx.strokeStyle = '#FFFFFF'        // 白色描边保证可见
-      ctx.stroke()
-
-      // 特殊豆标记：外圈彩色
-      const mark = { gold: '#FFD700', double: '#FFFFFF', slow: '#1989FA',
-                     fast: '#FA5151', shield: '#FFFFFF', shrink: '#FFFFFF', packet: '#FA5151' }[g.food.type]
-      if (mark && g.food.type !== 'normal') {
-        ctx.beginPath()
-        ctx.arc(fx, fy, r * 1.7, 0, Math.PI * 2)
-        ctx.lineWidth = Math.max(1.5, cell * 0.09)
-        ctx.strokeStyle = mark
-        ctx.stroke()
-      }
-    }
+    // 豆子：普通豆/特殊豆 + 常驻节奏豆
+    this.drawFood(ctx, g.food, ox, oy, cell)
+    this.drawFood(ctx, g.paceFood, ox, oy, cell)
 
     // 蛇（绿色 #07C160，蛇头略深 #06AD56）
     const n = g.snake.length
@@ -281,6 +263,34 @@ Page({
       const rad = Math.max(2, cell * 0.22)
       this.roundRect(ctx, x + pad, y + pad, cell - pad * 2, cell - pad * 2, rad)
       ctx.fill()
+    }
+  },
+
+  /** 画一颗豆子（黑色本体 + 白描边 + 类型色外圈） */
+  drawFood(ctx, food, ox, oy, cell) {
+    if (!food) return
+    const fx = ox + food.x * cell + cell / 2
+    const fy = oy + food.y * cell + cell / 2
+    const r = cell * 0.28
+
+    ctx.beginPath()
+    ctx.arc(fx, fy, r, 0, Math.PI * 2)
+    ctx.fillStyle = '#000000'
+    ctx.fill()
+    ctx.lineWidth = Math.max(1, cell * 0.07)
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.stroke()
+
+    const mark = {
+      gold: '#FFD700', double: '#FFFFFF', shield: '#FFFFFF',
+      shrink: '#FFFFFF', packet: '#FA5151', pace: '#1989FA'
+    }[food.type]
+    if (mark) {
+      ctx.beginPath()
+      ctx.arc(fx, fy, r * 1.7, 0, Math.PI * 2)
+      ctx.lineWidth = Math.max(1.5, cell * 0.09)
+      ctx.strokeStyle = mark
+      ctx.stroke()
     }
   },
 
@@ -303,23 +313,20 @@ Page({
     this.msgSeq = 0
     if (!s.fakeMsg) { this.setData({ messages: [], scrollTo: '' }); this.stopChatTimer(); return }
 
+    // 初始铺满一段搞笑对话
     const arr = []
-    for (let i = 0; i < 6; i++) arr.push(this.makeMessage(arr.length))
+    const seed = jokes.conversation(3)
+    seed.forEach((m) => arr.push(this.makeMessage(arr.length, m)))
     this.setData({ messages: arr, scrollTo: 'msg-' + arr[arr.length - 1].id })
     this.startChatTimer()
   },
 
   /** 构造一条随机消息（随机对方/自己、随机文案） */
-  makeMessage(seq) {
-    const self = Math.random() > 0.5
+  makeMessage(seq, preset) {
     const id = ++this.msgSeq
-    return {
-      id,
-      seq,
-      text: fake.pick(fake.BUBBLES),
-      self,
-      avatar: self ? AVATAR_ME : AVATAR_OTHER
-    }
+    const self = preset ? !!preset.self : Math.random() > 0.5
+    const text = preset ? preset.text : fake.pick(fake.BUBBLES)
+    return { id, seq, text, self, avatar: self ? AVATAR_ME : AVATAR_OTHER }
   },
 
   /** 定时追加新消息并向下滚动（像真实聊天持续收到消息） */
@@ -331,7 +338,9 @@ Page({
     this.chatTimer = setInterval(() => {
       if (this.data.bossMode) return
       const list = (this.data.messages || []).slice()
-      list.push(this.makeMessage(list.length))
+      // 每次追加一小段对话（1-2 条），像真的在聊天
+      const batch = jokes.oneMessage()
+      batch.forEach((m) => list.push(this.makeMessage(list.length, m)))
       // 只保留最近 40 条，避免长期运行内存增长
       while (list.length > 40) list.shift()
       const last = list[list.length - 1]
@@ -374,6 +383,11 @@ Page({
     this.stopLoop()
     this.setData({ paused: true, running: false })
     if (reason === 'hide') this.pausedByHide = true
+  },
+
+  /** 暂停时点击伪装的聊天底框 → 继续游戏 */
+  onResumeFromBar() {
+    if (this.game && this.game.state === 'paused') this.onPauseToggle()
   },
 
   onRestart() {

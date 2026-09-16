@@ -22,13 +22,18 @@ const DIRS = {
 const SPECIALS = {
   gold:    { label: '金豆',   points: 5,  color: '#FFD700', duration: 0 },
   double:  { label: '双倍豆', points: 1,  color: '#FFFFFF', duration: 20 },
-  slow:    { label: '减速豆', points: 3,  color: '#1989FA', duration: 8 },
   shield:  { label: '护盾豆', points: 3,  color: '#FFFFFF', duration: 0 },
   shrink:  { label: '缩小豆', points: 3,  color: '#FFFFFF', duration: 0 },
   packet:  { label: '红包',   points: 0,  color: '#FA5151', duration: 0 } // 分数随机 10-50
 }
 
 const SPECIAL_KEYS = Object.keys(SPECIALS)
+
+/**
+ * 常驻「节奏豆」：固定出现在场上，被吃掉后立即再生成一个
+ * （与随机特殊豆互不影响）。吃掉可降低蛇速，用于降低难度。
+ */
+const PACE = { label: '减速豆', points: 3, color: '#1989FA', duration: 8 }
 
 /** 特殊豆出现概率（说明书建议 20%-30%） */
 const SPECIAL_RATE_MID = 0.25
@@ -74,7 +79,8 @@ class SnakeGame {
     this.packetPopup = 0       // 红包弹窗分数（>0 时前端展示）
     this.remainSeconds = this.mode === MODES.TIMED ? this.timedSeconds : 0
     this.food = null
-    this.spawnFood()
+    this.paceFood = null
+    this.spawnFood(true)
     return this
   }
 
@@ -143,12 +149,20 @@ class SnakeGame {
     return free[Math.floor(Math.random() * free.length)]
   }
 
-  spawnFood() {
+  /**
+   * 生成豆子。
+   * 节奏豆（PACE）被打掉后必定重新生成；其余位置生成普通豆或随机特殊豆。
+   */
+  spawnFood(forcePace) {
+    // 场上没有节奏豆时补一个（保证「减速豆」始终存在）
+    if (forcePace || !this.paceFood) {
+      const c = this.randomFreeCell()
+      if (c) this.paceFood = { x: c.x, y: c.y, type: 'pace' }
+    }
     const cell = this.randomFreeCell()
     if (!cell) { this.food = null; return }
     let type = 'normal'
     if (this.specialFood && Math.random() < SPECIAL_RATE_MID) {
-      // 穿墙模式中护盾主要用于免疫撞自己，仍可出现
       type = SPECIAL_KEYS[Math.floor(Math.random() * SPECIAL_KEYS.length)]
     }
     this.food = { x: cell.x, y: cell.y, type }
@@ -189,7 +203,8 @@ class SnakeGame {
     }
 
     // 撞自己（蛇尾即将移动，因此允许移动到当前尾部位置）
-    const willEat = this.food && nx === this.food.x && ny === this.food.y
+    const eating = (f) => f && nx === f.x && ny === f.y
+    const willEat = eating(this.food) || eating(this.paceFood)
     const body = willEat ? this.snake : this.snake.slice(0, -1)
     const hitSelf = body.some((s) => s.x === nx && s.y === ny)
     if (hitSelf) {
@@ -207,8 +222,8 @@ class SnakeGame {
     let special = null
 
     if (willEat) {
-      const food = this.food
-      const res = this.consume(food)
+      const target = eating(this.food) ? this.food : this.paceFood
+      const res = this.consume(target)
       gained = res.gained
       special = res.special
     } else {
@@ -226,6 +241,12 @@ class SnakeGame {
 
     if (type === 'normal') {
       gained = this.foodPoints
+    } else if (type === 'pace') {
+      // 常驻节奏豆：加分 + 减速，并立即再生成一个
+      gained = PACE.points
+      this.effects.slow = (this.effects.slow || 0) + PACE.duration
+      special = 'pace'
+      this.paceFood = null
     } else {
       const cfg = SPECIALS[type]
       special = type
@@ -287,4 +308,4 @@ class SnakeGame {
   }
 }
 
-module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, SPECIAL_RATE_MID }
+module.exports = { SnakeGame, MODES, DIRS, SPECIALS, SPECIAL_KEYS, PACE, SPECIAL_RATE_MID }

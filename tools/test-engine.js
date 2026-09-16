@@ -122,11 +122,19 @@ g.tick()
 check('双倍期间普通豆得 2 分', g.score - before === 2, `+${g.score - before}`)
 
 g = makeGame(); g.start()
-g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'slow' }
-const ivBefore = g.interval()
+// 常驻节奏豆：场上始终存在一个
+check('初始即存在常驻节奏豆', !!g.paceFood && g.paceFood.type === 'pace',
+  g.paceFood ? `(${g.paceFood.x},${g.paceFood.y}) ${g.paceFood.type}` : 'null')
+const paceBefore = g.interval()
+const pf = g.paceFood
+g.snake = [{ x: pf.x - 1, y: pf.y }, { x: pf.x - 2, y: pf.y }, { x: pf.x - 3, y: pf.y }]
+g.dir = { x: 1, y: 0 }; g.dirName = 'right'
 g.tick()
-check('减速豆进入 8 秒效果', g.hasEffect('slow') && g.effects.slow === 8, JSON.stringify(g.effects))
-check('减速后移动间隔变长', g.interval() > ivBefore, `${ivBefore} → ${g.interval()}`)
+check('吃节奏豆 +3 分', g.score === 3, `score=${g.score}`)
+check('吃节奏豆进入 8 秒减速', g.hasEffect('slow') && g.effects.slow === 8, JSON.stringify(g.effects))
+check('减速后移动间隔变长', g.interval() > paceBefore, `${paceBefore} → ${g.interval()}`)
+check('吃掉后立即补新的节奏豆', !!g.paceFood && g.paceFood.type === 'pace',
+  g.paceFood ? `(${g.paceFood.x},${g.paceFood.y})` : 'null')
 
 g = makeGame(); g.start()
 g.food = { x: g.snake[0].x + 1, y: g.snake[0].y, type: 'shield' }
@@ -157,7 +165,9 @@ check('缩小豆最低保留 3 节', g.snake.length === 3, `实际 ${g.snake.len
 /* ---------- 速度 ---------- */
 section('需求变更验证')
 check('特殊豆已移除「加速豆」', !SPECIALS.fast, 'SPECIALS: ' + Object.keys(SPECIALS).join('/'))
-check('特殊豆共 6 种', Object.keys(SPECIALS).length === 6, String(Object.keys(SPECIALS).length))
+check('特殊豆已移除「减速豆」（改为常驻节奏豆）', !SPECIALS.slow, JSON.stringify(Object.keys(SPECIALS)))
+check('随机特殊豆共 5 种', Object.keys(SPECIALS).length === 5, String(Object.keys(SPECIALS).length))
+check('常驻节奏豆已导出', !!(require('../miniprogram/utils/snake-engine').PACE), JSON.stringify(require('../miniprogram/utils/snake-engine').PACE))
 const slowG = new SnakeGame({ speed: 'slow', specialFood: false })
 check('慢速已降低（间隔 ≥ 280ms）', slowG.interval() >= 280, slowG.interval() + 'ms')
 

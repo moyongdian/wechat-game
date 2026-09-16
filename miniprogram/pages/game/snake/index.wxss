@@ -346,3 +346,90 @@ page {
 .dlg-btn.primary { color: var(--green); font-weight: 600; }
 
 .ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ============================================================
+ * 暂停态：仿微信聊天输入栏（替换方向键）
+ * ============================================================ */
+.inputbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 20rpx 10rpx;
+  background: #F7F7F7;
+  border-top: 2rpx solid var(--line-strong);
+  flex-shrink: 0;
+}
+
+.ib-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.ib-ico {
+  width: 60rpx; height: 60rpx;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 语音图标：一段圆弧 */
+.voice-arc {
+  width: 30rpx; height: 30rpx;
+  border: 3rpx solid #191919;
+  border-radius: 50%;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  transform: rotate(-45deg);
+}
+
+/* 输入框 */
+.ib-input {
+  flex: 1;
+  height: 68rpx;
+  margin: 0 16rpx;
+  background: #FFFFFF;
+  border: 2rpx solid var(--line-strong);
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 20rpx;
+}
+.ib-ph { font-size: 30rpx; color: #B2B2B2; }
+
+/* 表情图标：圆脸 + 两点眼睛 */
+.emoji-face {
+  width: 32rpx; height: 32rpx;
+  border: 3rpx solid #191919;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 5rpx;
+}
+.emoji-eye {
+  width: 4rpx; height: 4rpx;
+  border-radius: 50%;
+  background: #191919;
+}
+
+/* 加号图标：圆环 + 十字 */
+.plus-ring {
+  width: 32rpx; height: 32rpx;
+  border: 3rpx solid #191919;
+  border-radius: 50%;
+  position: relative;
+}
+.plus-ring::before, .plus-ring::after {
+  content: '';
+  position: absolute;
+  background: #191919;
+  border-radius: 2rpx;
+}
+.plus-ring::before { left: 6rpx; top: 13rpx; width: 20rpx; height: 3rpx; }
+.plus-ring::after  { top: 6rpx; left: 13rpx; height: 20rpx; width: 3rpx; }
+
+.ib-hint {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: #B2B2B2;
+}

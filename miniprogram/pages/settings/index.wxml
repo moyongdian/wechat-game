@@ -45,7 +45,8 @@
         <view class="knob"></view>
       </view>
     </view>
-    <view class="tip">金豆 / 双倍 / 减速 / 护盾 / 缩小 / 红包</view>
+    <view class="tip">随机特殊豆：金豆 / 双倍 / 护盾 / 缩小 / 红包</view>
+    <view class="tip">常驻减速豆：场上始终存在一个，吃掉可降速（会立即再生成）</view>
   </view>
 
   <!-- 伪装增强 -->
