@@ -611,6 +611,7 @@ Page({
   },
 
   /** 方向键（点按） */
+  /** 方向键（点按） */
   onDir(e) {
     const dir = e.currentTarget.dataset.dir
     if (!this.game) return
@@ -620,6 +621,14 @@ Page({
     if (this.game.state !== 'running') return
     const ok = this.game.turn(dir)
     if (!ok) return
+
+    // 修复「按了不改变方向」的观感：
+    // 转向后把插值基准同步为当前蛇身并立即重绘，
+    // 否则画面会继续从转向前的旧位置滑行，看起来像没响应。
+    this.prevSnake = this.game.snake.map((s2) => ({ x: s2.x, y: s2.y }))
+    this.lastTickAt = Date.now() - this.game.interval()   // 进度=1，直接画在当前位置
+    this.draw()
+
     const s = settings.get()
     util.vibrate(s.vibrate)
   },

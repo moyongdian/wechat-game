@@ -140,35 +140,34 @@ page {
 /* 装饰性聊天消息：头像 + 气泡
    对方靠左边缘、自己靠右边缘；字号与头像按微信观感放大，
    透明度低，不干扰游戏画面 */
+/* 消息行：头像贴边、气泡紧随其后
+   用 flex + row-reverse 让「头像在最外侧、气泡靠中间」，
+   气泡自身用 align-items: flex-start 收缩到文字宽度（仅包裹文字） */
 .msg {
-  position: relative;
+  display: flex;
   width: 100%;
   margin-bottom: 18rpx;
   opacity: .72;
   pointer-events: none;
 }
-/* 消息行：头像固定贴边（绝对定位，不参与 flex 计算）
-   → 左右两侧头像位置完全确定，不会因气泡宽度被挤出屏幕 */
-.msg.left  { padding-left: 16rpx;  padding-right: 150rpx; }
-.msg.right { padding-right: 16rpx; padding-left: 150rpx; }
+.msg.left  { flex-direction: row;         justify-content: flex-start; }
+.msg.right { flex-direction: row-reverse; justify-content: flex-start; }
 
+/* 头像：固定尺寸，紧贴消息区边缘 */
 .msg-avatar {
-  position: absolute;
-  top: 0;
   width: 76rpx;
   height: 76rpx;
   border-radius: 12rpx;
+  flex-shrink: 0;
   border: 1rpx solid var(--line-strong);
   background: #D8D8D8;          /* 图片未加载时也占位可见 */
   display: block;
 }
-.msg.left  .msg-avatar { left: 16rpx; }
-.msg.right .msg-avatar { right: 16rpx; }
 
 .msg-bubble {
-  display: inline-block;     /* 仅包裹文字宽度，不撑满整行 */
-  max-width: 100%;           /* 超长时换行，最多占满可用宽度 */
-  width: fit-content;
+  align-self: flex-start;        /* 高度贴合文字，不被拉伸 */
+  max-width: 460rpx;             /* 超长才换行，短文本自动收缩 */
+  margin: 0 16rpx;
   padding: 16rpx 22rpx;
   border-radius: 16rpx;
   background: rgba(255,255,255,0.92);

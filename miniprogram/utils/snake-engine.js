@@ -115,15 +115,20 @@ class SnakeGame {
   }
 
   /* ---------------- 转向（限制 180 度反向） ---------------- */
+  /**
+   * 转向
+   * 修复「按键延迟」：
+   *  - 原先同一 tick 内第二次转向会被直接忽略（连按丢输入），
+   *    现在允许覆盖待处理方向，使连续按键不丢失；
+   *  - 反向判定改为基于「待处理方向（若有）或当前方向」，避免覆盖时产生 180° 回头。
+   */
   turn(name) {
     if (!DIRS[name]) return false
     if (this.state === 'over' || !this.alive) return false
-    const cur = this.dir
+    const base = this.pendingDir ? DIRS[this.pendingDir] : this.dir
     const next = DIRS[name]
-    // 反向判定：当前方向与目标方向相加为 0
-    if (cur.x + next.x === 0 && cur.y + next.y === 0) return false
-    // 同一 tick 内只接受一次转向，避免快速连按导致自杀
-    if (this.pendingDir) return false
+    // 反向判定：两方向相加为 0 即为 180° 回头，禁止
+    if (base.x + next.x === 0 && base.y + next.y === 0) return false
     this.pendingDir = name
     return true
   }

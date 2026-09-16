@@ -55,18 +55,22 @@ function loadPage(rel) {
 }
 
 /* ---------- 游戏页 ---------- */
-section('游戏页 pages/game/snake：长按加速的调用顺序（曾因顺序反了导致蛇卡住）')
-const game = loadPage('pages/game/snake/index.js')
+section('游戏页：长按加速（保留）与按键即时响应')
 {
   const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')
-  const body = src.slice(src.indexOf('onDirLongStart(e) {'), src.indexOf('onDirLongEnd()'))
-  const iStop = body.indexOf('this.stopLoop()')
-  const iDir = body.indexOf('this.boostDir = dir')
-  check('onDirLongStart 存在', typeof game.onDirLongStart === 'function')
-  check('先 stopLoop() 再设置 boostDir', iStop !== -1 && iDir !== -1 && iStop < iDir,
-    `stopLoop@${iStop} boostDir@${iDir}`)
-  check('加速循环按间隔一半推进（速度翻倍）', src.includes('this.game.interval() / 2'))
-  check('stopLoop 会清理加速定时器', /stopLoop\(\) \{[\s\S]*?boostTimer/.test(src))
+  const wxml = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxml'), 'utf8')
+  check('长按加速逻辑存在', src.includes('startBoostLoop') && src.includes('boostDir'))
+  check('WXML 绑定长按事件', wxml.includes('bindlongpress="onDirLongStart"') &&
+    wxml.includes('bindtouchend="onDirLongEnd"'))
+  check('长按顺序：先 stopLoop 再设置 boostDir', (() => {
+    const b = src.slice(src.indexOf('onDirLongStart(e) {'), src.indexOf('onDirLongEnd()'))
+    const iStop = b.indexOf('this.stopLoop()'), iDir = b.indexOf('this.boostDir = dir')
+    return iStop !== -1 && iDir !== -1 && iStop < iDir
+  })())
+  // 修复按键延迟：转向后重置插值基准并立即重绘
+  const onDir = src.slice(src.indexOf('onDir(e) {'), src.indexOf('onDirLongStart'))
+  check('转向后重置插值基准（修复视觉滞后）', onDir.includes('this.prevSnake = this.game.snake.map'))
+  check('转向后立即重绘', onDir.includes('this.draw()'))
 }
 
 section('游戏页：暂停 / 恢复时聊天定时器的清理（曾导致假消息不再更新）')
