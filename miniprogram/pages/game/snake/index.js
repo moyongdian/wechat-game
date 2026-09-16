@@ -101,30 +101,37 @@ Page({
   initCanvas() {
     const query = wx.createSelectorQuery()
     query.select('#gameCanvas').fields({ node: true, size: true })
+    query.select('#foodCanvas').fields({ node: true, size: true })
     query.exec((res) => {
-      if (!res || !res[0] || !res[0].node) {
+      if (!res || !res[0] || !res[0].node || !res[1] || !res[1].node) {
         setTimeout(() => this.initCanvas(), 120)     // 极端情况延迟重试
         return
       }
-      const canvas = res[0].node
-      const width = res[0].width
-      const height = res[0].height
       const dpr = (wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : wx.getSystemInfoSync().pixelRatio) || 2
+      const setup = (item) => {
+        const canvas = item.node
+        const width = item.width
+        const height = item.height
+        canvas.width = width * dpr
+        canvas.height = height * dpr
+        const ctx = canvas.getContext('2d')
+        ctx.scale(dpr, dpr)
+        return { canvas, ctx, width, height }
+      }
+      const main = setup(res[0])
+      const food = setup(res[1])
 
-      canvas.width = width * dpr
-      canvas.height = height * dpr
-      const ctx = canvas.getContext('2d')
-      ctx.scale(dpr, dpr)
-
-      this.canvas = canvas
-      this.ctx = ctx
+      this.canvas = main.canvas
+      this.ctx = main.ctx
+      this.foodCanvas = food.canvas
+      this.foodCtx = food.ctx
       this.dpr = dpr
       // 让网格精确填满消息区内框：墙的位置即界面边框位置
       this.cellsX = COLS
-      this.cellsY = Math.max(8, Math.round(COLS * (height / width)))
-      this.vw = width
-      this.vh = height
-      this.cell = width / COLS
+      this.cellsY = Math.max(8, Math.round(COLS * (main.height / main.width)))
+      this.vw = main.width
+      this.vh = main.height
+      this.cell = main.width / COLS
 
       this.createGame()
       this.draw()
@@ -205,6 +212,7 @@ Page({
       : (cb) => setTimeout(cb, 16)
     const frame = () => {
       this.draw()
+      this.drawFoodLayer()
       this.renderRaf = raf(frame)
     }
     this.renderRaf = raf(frame)
@@ -302,14 +310,16 @@ Page({
       ctx.fillRect(0, 0, this.vw, this.vh)
     }
 
+    // 网格填满内框，无居中留白 → 墙体即为界面边框
     const ox = 0
     const oy = 0
 
-    // 绘制顺序：墙 → 豆子 → 蛇
-    // 同一层内保证蛇头覆盖豆子（吃豆瞬间不会看着像没吃到）
-    this.drawWall(ctx, ox, oy, cell)
-    this.drawFood(ctx, g.food, ox, oy, cell)
-    if (g.magnetFood) this.drawFood(ctx, g.magnetFood, ox, oy, cell)
+    // 墙体：与界面边框同色同宽（界面边框 2rpx）
+    // 墙宽与界面边框一致：2rpx ≈ 1px（ctx 已按 dpr 缩放，无需再乘）
+    ctx.strokeStyle = '#D6D6D6'
+    ctx.lineWidth = 1
+    ctx.strokeRect(ox, oy, cell * this.cellsX, cell * this.cellsY)
+
 
     // 蛇：粗圆头线段连接各节中心 → 无缝隙
     // 平滑移动：在上一 tick 位置与当前位置之间按进度插值，
@@ -419,11 +429,15 @@ Page({
    *  - 缩小豆：白色小圆（最小）
    *  - 红包：红色圆角矩形（最大）+ 金边与金色封口
    */
-  /** 墙体：与界面边框同色同宽，标出蛇的活动范围 */
-  drawWall(ctx, ox, oy, cell) {
-    ctx.strokeStyle = '#D6D6D6'
-    ctx.lineWidth = 1
-    ctx.strokeRect(ox, oy, cell * this.cellsX, cell * this.cellsY)
+  /** 豆子层：单独画布绘制，确保显示在聊天消息之上 */
+  drawFoodLayer() {
+    const ctx = this.foodCtx
+    if (!ctx || !this.game) return
+    const cell = this.cell
+    ctx.clearRect(0, 0, this.vw, this.vh)
+    const ox = 0, oy = 0
+    this.drawFood(ctx, this.game.food, ox, oy, cell)
+    if (this.game.magnetFood) this.drawFood(ctx, this.game.magnetFood, ox, oy, cell)
   },
 
   /**

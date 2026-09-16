@@ -121,9 +121,9 @@ page {
   display: block;
   z-index: 1;          /* 墙与蛇：在聊天消息之上 */
 }
-/* 游戏层（墙 + 豆子 + 蛇）：放在聊天层(2)之上，避免被假消息遮挡
+/* 豆子层：放在聊天层(2)之上，避免被假消息遮挡
    注意 z-index 只对定位元素生效，必须显式声明 position: absolute */
-.canvas-game {
+.canvas-food {
   position: absolute;
   left: 0; top: 0;
   width: 100%;

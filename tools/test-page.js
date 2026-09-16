@@ -75,34 +75,22 @@ section('游戏页：方向键即时响应（长按加速已按要求删除）')
   check('连点保护（<40ms 只记录方向，避免瞬间多格）', onDir.includes('tooFast') && onDir.includes('< 40'))
 }
 
-section('游戏页：墙/豆子/蛇整体显示在假消息之上（单层画布）')
+section('游戏页：豆子显示在假消息之上（双画布分层）')
 {
   const wxml = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(MP, 'pages/game/snake/index.wxss'), 'utf8')
   const src = fs.readFileSync(path.join(MP, 'pages/game/snake/index.js'), 'utf8')
-  check('只有一层游戏画布', (wxml.match(/<canvas/g) || []).length === 1 &&
-    wxml.includes('id="gameCanvas"'))
-  check('游戏层 z-index 高于聊天层', (() => {
-    const game = /\.canvas-game\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
-    const chat = /\.chat-scroll\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
-    return game && chat && Number(game[1]) > Number(chat[1])
+  check('存在两个画布（蛇层 + 豆子层）',
+    wxml.includes('id="gameCanvas"') && wxml.includes('id="foodCanvas"'))
+  check('豆子层 z-index 高于聊天层', (() => {
+    const food = /canvas-food[^}]*z-index:\s*(\d+)/.exec(wxss)
+    const chat = /chat-scroll\s*\{[^}]*z-index:\s*(\d+)/.exec(wxss)
+    return food && chat && Number(food[1]) > Number(chat[1])
   })())
-  check('游戏层声明了 position（否则 z-index 无效）',
-    /\.canvas-game\s*\{[^}]*position:\s*absolute/.test(wxss))
-  // 同一层内绘制顺序：墙 → 豆子 → 蛇（保证蛇头覆盖豆子）
-  check('绘制顺序为 墙 → 豆子 → 蛇', (() => {
-    // 截取 draw() 方法体（到下一个方法定义为止），避免匹配到方法定义本身
-    const m = src.match(/\n  draw\(\) \{[\s\S]*?\n  \},/)
-    const body = m ? m[0] : ''
-    const iWall = body.indexOf('this.drawWall(')
-    const iFood = body.indexOf('this.drawFood(')
-    const iSnake = body.indexOf('// 蛇：用于') !== -1
-      ? body.indexOf('// 蛇：用于')
-      : body.search(/\/\/ 蛇/)
-    return iWall !== -1 && iFood !== -1 && iSnake !== -1 && iWall < iFood && iFood < iSnake
-  })())
-  check('已移除多余画布与分层绘制', !src.includes('drawFoodLayer') && !src.includes('foodCtx'))
-  check('渲染循环调用 draw()', /const frame = \(\) => \{[\s\S]*?this\.draw\(\)/.test(src))
+  check('豆子层声明了 position（否则 z-index 无效）',
+    /\.canvas-food\s*\{[^}]*position:\s*absolute/.test(wxss))
+  check('渲染循环同时绘制两层', src.includes('this.drawFoodLayer()'))
+  check('豆子画布已初始化', src.includes('this.foodCtx') && src.includes("select('#foodCanvas')"))
 }
 
 section('游戏页：暂停 / 恢复时聊天定时器的清理（曾导致假消息不再更新）')
